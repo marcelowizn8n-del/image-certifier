@@ -1,20 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  ArrowLeft, 
   CheckCircle2, 
   XCircle, 
   AlertCircle,
   Calendar,
   Image as ImageIcon
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import logoImage from "@/assets/logo.png";
+import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { Analysis } from "@shared/schema";
 
 export default function Dashboard() {
@@ -60,33 +59,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40 sticky top-0 z-40 bg-background/95 backdrop-blur-sm">
-        <div className="container flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <img 
-              src={logoImage} 
-              alt="Image Certifier Logo" 
-              className="h-10 w-10"
-            />
-            <div>
-              <h1 className="text-xl font-bold text-foreground" data-testid="text-page-title">
-                Analysis History
-              </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                View your past analyses
-              </p>
-            </div>
-          </div>
-          
-          <ThemeToggle />
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 container py-8">
