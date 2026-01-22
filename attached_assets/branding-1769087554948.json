@@ -1,0 +1,115 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "ui-sans-serif",
+      "count": 57
+    },
+    {
+      "family": "system-ui",
+      "count": 57
+    },
+    {
+      "family": "sans-serif",
+      "count": 57
+    },
+    {
+      "family": "Apple Color Emoji",
+      "count": 57
+    },
+    {
+      "family": "Segoe UI Emoji",
+      "count": 57
+    },
+    {
+      "family": "Segoe UI Symbol",
+      "count": 57
+    },
+    {
+      "family": "Noto Color Emoji",
+      "count": 57
+    }
+  ],
+  "colors": {
+    "primary": "#252F37",
+    "accent": "#0092B8",
+    "background": "#030609",
+    "textPrimary": "#030609",
+    "link": "#0092B8"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "ui-sans-serif",
+      "heading": "ui-sans-serif"
+    },
+    "fontStacks": {
+      "body": [
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "heading": [
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "paragraph": [
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ]
+    },
+    "fontSizes": {
+      "h1": "24px",
+      "h2": "30px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 8,
+    "borderRadius": "0px"
+  },
+  "components": {},
+  "images": {
+    "logo": "https://www.imgcertifier.app/logo.png",
+    "favicon": "https://www.imgcertifier.app/favicon.ico",
+    "ogImage": "https://private-us-east-1.manuscdn.com/sessionFile/DFZIMeYwfiz553g7NawkdK/sandbox/Tvwsq5TE7oPL2mn4eocHsh_1769086351807_na1fn_bW1faW1hZ2U.webp?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvREZaSU1lWXdmaXo1NTNnN05hd2tkSy9zYW5kYm94L1R2d3NxNVRFN29QTDJtbjRlb2NIc2hfMTc2OTA4NjM1MTgwN19uYTFmbl9iVzFmYVcxaFoyVS53ZWJwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=QWy4EimsLkv27R8HpLIgLz1WptW6KxIEal6~O3D1RTGFVgHoKxl2h1RiI7cG2TaCpKhAno9oKk9bTVwsv-LNIGmBtYPNqQhn1XJu-NNOHeTveyzzfpMgP4~4mhG6RPfY4b1BilFPvgGBCdgljiBb~YhiTMJfDW8oll7SvUXRtbYV7V3cA2A7LpmO9RwjNofwGIq6uQ4mmhRLxPrBE2QHeDcOnB~KvRaR59NSvw4HtqGGAe8ed5wgUB6iNn9kRYEyb6Tytc4Jk~f-cYnwfptWx4FMAkvOPpoVQ9PgVgIO2kY0Nf2HKSFBWqiYympKicvu9k1DnL4ym5mjQcWwXbyANw__?x-oss-process=image/resize,w_1200/crop,h_630,x_0,y_0"
+  },
+  "__framework_hints": [],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Logo rejected: Red flags detected (small square icon). Heuristic fallback: Weak indicators: no link (brand logos usually link to homepage, penalty), visible, highest logo on page, alt matches logo/brand, src contains logo, reasonable size, small square icon (likely UI icon, heavy penalty), body location without header (penalty). Score: 8. LLM validation recommended (close scores: top=8, second=0)",
+    "confidence": 0.30000000000000004,
+    "rejected": true
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  }
+}
