@@ -18,9 +18,9 @@ import {
   Layers, 
   Link2, 
   Camera,
-  Shield,
   Sparkles
 } from "lucide-react";
+import logoImage from "@assets/logo_imgcertifier_1769090162657.png";
 import { DebugScoresCard } from "@/components/DebugScoresCard";
 import { AnalysisLoadingAnimation } from "@/components/AnalysisLoadingAnimation";
 import { Testimonials } from "@/components/Testimonials";
@@ -323,9 +323,11 @@ export default function Upload() {
       <header className="border-b border-border/40 sticky top-0 z-40 bg-background/95 backdrop-blur-sm">
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <Shield className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img 
+              src={logoImage} 
+              alt="Image Certifier Logo" 
+              className="h-10 w-10"
+            />
             <div>
               <h1 className="text-xl font-bold text-foreground" data-testid="text-app-title">
                 Image Certifier

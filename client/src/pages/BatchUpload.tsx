@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
-  Shield, 
   ArrowLeft, 
   Layers,
   Upload,
@@ -15,6 +14,7 @@ import {
   Trash2
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import logoImage from "@assets/logo_imgcertifier_1769090162657.png";
 import { Footer } from "@/components/Footer";
 
 interface BatchFile {
@@ -84,9 +84,11 @@ export default function BatchUpload() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <Shield className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img 
+              src={logoImage} 
+              alt="Image Certifier Logo" 
+              className="h-10 w-10"
+            />
             <div>
               <h1 className="text-xl font-bold text-foreground" data-testid="text-page-title">
                 Batch Analysis
