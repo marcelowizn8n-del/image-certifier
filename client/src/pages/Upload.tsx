@@ -65,7 +65,7 @@ export default function Upload() {
   const analyzeMutation = useMutation({
     mutationFn: async (data: { imageData: string; filename: string }) => {
       const response = await apiRequest("POST", "/api/analyze", data);
-      return response as Analysis;
+      return await response.json() as Analysis;
     },
     onSuccess: (data) => {
       setResult(data);
@@ -89,7 +89,7 @@ export default function Upload() {
   const analyzeUrlMutation = useMutation({
     mutationFn: async (url: string) => {
       const response = await apiRequest("POST", "/api/analyze-url", { url });
-      return response as Analysis;
+      return await response.json() as Analysis;
     },
     onSuccess: (data) => {
       setResult(data);

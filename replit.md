@@ -48,7 +48,11 @@ Preferred communication style: Simple, everyday language.
 - **Language**: TypeScript with ES modules
 - **API Design**: RESTful endpoints under `/api` prefix
 - **Image Processing**: Base64 encoding for image data transmission
-- **Analysis Engine**: Currently simulated scoring (designed for integration with ML services like Hugging Face)
+- **Analysis Engine**: GPT-4o vision model via Replit AI Integrations for high-accuracy AI detection
+  - Combines AI vision analysis with technical EXIF/noise/artifact analysis
+  - Uses `response_format: { type: "json_object" }` for structured responses
+  - EXIF boost for camera-confirmed photos increases confidence
+  - Environment variables: `AI_INTEGRATIONS_OPENAI_API_KEY`, `AI_INTEGRATIONS_OPENAI_BASE_URL`
 
 ### Data Storage
 - **ORM**: Drizzle ORM with PostgreSQL dialect

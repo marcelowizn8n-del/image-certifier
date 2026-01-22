@@ -4,6 +4,13 @@ import { storage } from "./storage";
 import { analyzeImageSchema, analyzeUrlSchema } from "@shared/schema";
 import sharp from "sharp";
 import ExifParser from "exif-parser";
+import OpenAI from "openai";
+
+// Initialize OpenAI client for AI-powered analysis
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 // Known camera manufacturers
 const KNOWN_CAMERA_BRANDS = [
@@ -280,7 +287,80 @@ function calculateArtifactScore(artifacts: ArtifactAnalysis): number {
   return Math.max(0, 1 - (suspiciousCount / 7));
 }
 
-// Main analysis function using multi-layer approach
+// AI-powered image analysis using GPT-4o vision
+async function analyzeWithAI(imageData: string): Promise<{
+  result: "original" | "ai_generated" | "ai_modified";
+  confidence: number;
+  reasoning: string;
+  artifacts: string[];
+}> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert image forensics analyst. Analyze images for AI generation signs:
+- Unnatural skin textures/smoothness
+- Inconsistent lighting/shadows
+- Malformed details (hands, fingers, text)
+- Repetitive patterns or artifacts
+- Unnatural backgrounds/perspective
+- Unusual color gradients/noise
+
+For real photos look for:
+- Natural noise/grain patterns
+- Consistent lighting/perspective
+- Natural imperfections
+- Camera artifacts (lens distortion, blur)
+
+You MUST respond with valid JSON:
+{"classification":"original"|"ai_generated"|"ai_modified","confidence":0-100,"reasoning":"explanation","artifacts":["list"]}`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Analyze this image. Determine if it's an original photograph, AI-generated, or AI-modified. Return JSON only."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageData,
+                detail: "high"
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 500,
+    });
+
+    const content = response.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+    
+    // Validate and clamp values
+    const validClassifications = ["original", "ai_generated", "ai_modified"];
+    const classification = validClassifications.includes(parsed.classification) 
+      ? parsed.classification 
+      : "original";
+    const confidence = Math.min(100, Math.max(0, Number(parsed.confidence) || 75));
+    
+    return {
+      result: classification as "original" | "ai_generated" | "ai_modified",
+      confidence,
+      reasoning: String(parsed.reasoning || ""),
+      artifacts: Array.isArray(parsed.artifacts) ? parsed.artifacts : [],
+    };
+  } catch (error) {
+    console.error("AI analysis error:", error);
+    throw error;
+  }
+}
+
+// Main analysis function using multi-layer approach + AI
 async function analyzeImageAdvanced(imageData: string, filename: string) {
   // Extract buffer from base64
   const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
@@ -289,77 +369,53 @@ async function analyzeImageAdvanced(imageData: string, filename: string) {
   // Get image stats first (needed for artifact analysis)
   const stats = await getImageStats(buffer);
   
-  // Run remaining analyses in parallel
+  // Run technical analyses in parallel
   const [exif, noise, artifacts] = await Promise.all([
     extractExifData(buffer),
     analyzeNoise(buffer),
     analyzeArtifacts(buffer, stats),
   ]);
   
-  // Calculate individual scores
+  // Calculate technical scores
   const exifScore = calculateExifScore(exif);
   const noiseScore = calculateNoiseScore(noise);
   const artifactScore = calculateArtifactScore(artifacts);
   
-  // Combined scoring with weighted factors
-  // EXIF is very important for real photos
-  // Noise patterns help detect AI smoothness
-  // Artifacts detect typical AI generation patterns
-  const weights = {
-    exif: 0.4,      // Strong indicator
-    noise: 0.25,    // Medium indicator
-    artifact: 0.35, // Important for AI detection
-  };
-  
-  const realnessScore = 
-    exifScore * weights.exif + 
-    noiseScore * weights.noise + 
-    artifactScore * weights.artifact;
-  
-  const aiConfidence = 1 - realnessScore;
-  
-  // Intelligent decision logic - favor original for real photos
-  let result: "original" | "ai_generated" | "ai_modified" | "uncertain";
-  
-  // Strong EXIF from camera = almost certainly original
-  if (exifScore >= 0.5) {
-    // Has good EXIF data - strong indicator of real photo
-    if (aiConfidence < 0.6) {
-      result = "original";
-    } else {
-      // Has EXIF but also AI markers - might be modified
-      result = "ai_modified";
-    }
+  // Run AI analysis for high accuracy
+  let aiAnalysis: { result: "original" | "ai_generated" | "ai_modified"; confidence: number; reasoning: string; artifacts: string[] };
+  try {
+    aiAnalysis = await analyzeWithAI(imageData);
+  } catch (error) {
+    // Fallback to technical analysis if AI fails
+    console.error("AI analysis failed, using technical fallback:", error);
+    const technicalScore = exifScore * 0.4 + noiseScore * 0.25 + artifactScore * 0.35;
+    aiAnalysis = {
+      result: technicalScore > 0.6 ? "original" : technicalScore < 0.4 ? "ai_generated" : "ai_modified",
+      confidence: Math.round(Math.abs(technicalScore - 0.5) * 200),
+      reasoning: "Technical analysis fallback",
+      artifacts: [],
+    };
   }
-  // No EXIF or weak EXIF
-  else if (exifScore < 0.3) {
-    // No EXIF and high AI confidence = AI Generated
-    if (aiConfidence > 0.6) {
-      result = "ai_generated";
-    }
-    // No EXIF but low AI markers - could be screenshot or processed image
-    else if (aiConfidence > 0.45) {
-      result = "ai_modified";
-    }
-    else {
-      result = "original";
-    }
-  }
-  // Moderate EXIF score
-  else {
-    if (aiConfidence > 0.55) {
-      result = "ai_modified";
-    } else {
-      result = "original";
+  
+  // Combine AI result with EXIF boost for real photos
+  let finalResult = aiAnalysis.result;
+  let finalConfidence = aiAnalysis.confidence;
+  
+  // If EXIF shows real camera data, boost confidence in "original" classification
+  if (exifScore >= 0.5 && exif.cameraMake) {
+    if (aiAnalysis.result === "original") {
+      finalConfidence = Math.min(99, finalConfidence + 10);
+    } else if (aiAnalysis.result === "ai_modified" && aiAnalysis.confidence < 70) {
+      // If AI is uncertain about modification but EXIF is strong, lean toward original
+      finalResult = "original";
+      finalConfidence = Math.round(exifScore * 100);
     }
   }
   
-  // Calculate display confidence
-  const confidence = Math.round(
-    result === "original" 
-      ? realnessScore * 100 
-      : aiConfidence * 100
-  );
+  // If no EXIF and AI says AI-generated, boost that confidence
+  if (!exif.hasExif && aiAnalysis.result === "ai_generated") {
+    finalConfidence = Math.min(99, finalConfidence + 5);
+  }
 
   // Format artifacts for response
   const artifactResponse = {
@@ -386,19 +442,21 @@ async function analyzeImageAdvanced(imageData: string, filename: string) {
     exif_score: exifScore,
     noise_score: noiseScore,
     artifact_score: artifactScore,
-    ai_confidence: aiConfidence,
-    realness_score: realnessScore,
+    ai_confidence: aiAnalysis.confidence / 100,
+    realness_score: finalResult === "original" ? finalConfidence / 100 : 1 - (finalConfidence / 100),
     significant_artifacts: Object.values(artifacts).filter(Boolean).length,
-    ml_ai_score: aiConfidence,
-    ml_human_score: realnessScore,
-    ml_model: "multi-layer-analysis-v1",
+    ml_ai_score: aiAnalysis.confidence / 100,
+    ml_human_score: finalResult === "original" ? finalConfidence / 100 : 1 - (finalConfidence / 100),
+    ml_model: "gpt-4o-vision",
     noise_level: noise.noiseLevel,
     noise_consistency: noise.noiseConsistency,
+    ai_reasoning: aiAnalysis.reasoning,
+    ai_detected_artifacts: aiAnalysis.artifacts,
   };
 
   return {
-    result,
-    confidence,
+    result: finalResult,
+    confidence: finalConfidence,
     artifacts: artifactResponse,
     metadata,
     debugScores,
@@ -446,7 +504,9 @@ export async function registerRoutes(
       const { imageData, filename } = parsed.data;
       
       // Perform advanced multi-layer analysis
+      console.log("Starting image analysis for:", filename);
       const analysisResult = await analyzeImageAdvanced(imageData, filename);
+      console.log("Analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
       
       // Save to storage
       const analysis = await storage.createAnalysis({
@@ -459,6 +519,7 @@ export async function registerRoutes(
         imageData: imageData.length < 500000 ? imageData : undefined,
       });
 
+      console.log("Returning analysis:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
       res.json(analysis);
     } catch (error) {
       console.error("Error analyzing image:", error);
@@ -475,6 +536,7 @@ export async function registerRoutes(
       }
 
       const { url } = parsed.data;
+      console.log("Analyzing image from URL:", url);
       
       // Fetch image from URL
       const response = await fetch(url);
@@ -496,7 +558,9 @@ export async function registerRoutes(
       const filename = urlParts[urlParts.length - 1] || "image-from-url";
 
       // Perform advanced multi-layer analysis
+      console.log("Starting URL image analysis for:", filename);
       const analysisResult = await analyzeImageAdvanced(imageData, filename);
+      console.log("URL analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
       
       // Save to storage
       const analysis = await storage.createAnalysis({
@@ -509,6 +573,7 @@ export async function registerRoutes(
         imageData: imageData.length < 500000 ? imageData : undefined,
       });
 
+      console.log("URL analysis returning:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
       res.json(analysis);
     } catch (error) {
       console.error("Error analyzing URL:", error);
