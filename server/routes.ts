@@ -193,53 +193,53 @@ async function analyzeArtifacts(buffer: Buffer, stats: ImageStats): Promise<Arti
 
 // Calculate EXIF score (0-1, higher = more likely real)
 function calculateExifScore(exif: ExifData): number {
+  // Check for AI generator signatures first
+  if (exif.software) {
+    const softwareLower = exif.software.toLowerCase();
+    if (AI_GENERATOR_PATTERNS.some(pattern => softwareLower.includes(pattern))) {
+      return 0; // AI generator signature means not real
+    }
+  }
+  
   let score = 0;
-  let maxScore = 0;
+  let maxPoints = 0;
   
   // Has any EXIF data at all
-  if (exif.hasExif) score += 0.1;
-  maxScore += 0.1;
+  maxPoints += 15;
+  if (exif.hasExif) score += 15;
   
   // Has camera make
+  maxPoints += 20;
   if (exif.cameraMake) {
-    score += 0.15;
+    score += 10;
     // Known camera brand bonus
     if (KNOWN_CAMERA_BRANDS.some(brand => 
       exif.cameraMake!.toLowerCase().includes(brand)
     )) {
-      score += 0.1;
+      score += 10;
     }
   }
-  maxScore += 0.25;
   
   // Has camera model
-  if (exif.cameraModel) score += 0.1;
-  maxScore += 0.1;
+  maxPoints += 10;
+  if (exif.cameraModel) score += 10;
   
   // Has date/time
-  if (exif.dateTime) score += 0.1;
-  maxScore += 0.1;
+  maxPoints += 15;
+  if (exif.dateTime) score += 15;
   
   // Has GPS data (strong indicator of real photo)
-  if (exif.gpsLatitude && exif.gpsLongitude) score += 0.15;
-  maxScore += 0.15;
+  maxPoints += 20;
+  if (exif.gpsLatitude && exif.gpsLongitude) score += 20;
   
-  // Has exposure settings (ISO, aperture, shutter)
-  if (exif.iso) score += 0.1;
-  if (exif.aperture) score += 0.05;
-  if (exif.shutterSpeed) score += 0.05;
-  if (exif.focalLength) score += 0.05;
-  maxScore += 0.25;
+  // Has exposure settings (ISO, aperture, shutter) - indicates real camera
+  maxPoints += 20;
+  if (exif.iso) score += 5;
+  if (exif.aperture) score += 5;
+  if (exif.shutterSpeed) score += 5;
+  if (exif.focalLength) score += 5;
   
-  // Check for AI generator signatures in software field
-  if (exif.software) {
-    const softwareLower = exif.software.toLowerCase();
-    if (AI_GENERATOR_PATTERNS.some(pattern => softwareLower.includes(pattern))) {
-      score -= 0.5; // Strong penalty for AI generator signature
-    }
-  }
-  
-  return Math.max(0, Math.min(1, score / maxScore));
+  return score / maxPoints; // Normalized 0-1
 }
 
 // Calculate noise score (0-1, higher = more natural/real)
@@ -318,34 +318,40 @@ async function analyzeImageAdvanced(imageData: string, filename: string) {
   
   const aiConfidence = 1 - realnessScore;
   
-  // Intelligent decision logic
+  // Intelligent decision logic - favor original for real photos
   let result: "original" | "ai_generated" | "ai_modified" | "uncertain";
   
-  // Strong EXIF + low AI indicators = Original
-  if (exifScore > 0.6 && aiConfidence < 0.4) {
-    result = "original";
+  // Strong EXIF from camera = almost certainly original
+  if (exifScore >= 0.5) {
+    // Has good EXIF data - strong indicator of real photo
+    if (aiConfidence < 0.6) {
+      result = "original";
+    } else {
+      // Has EXIF but also AI markers - might be modified
+      result = "ai_modified";
+    }
   }
-  // High AI confidence + no EXIF = AI Generated
-  else if (aiConfidence > 0.65 && exifScore < 0.3) {
-    result = "ai_generated";
+  // No EXIF or weak EXIF
+  else if (exifScore < 0.3) {
+    // No EXIF and high AI confidence = AI Generated
+    if (aiConfidence > 0.6) {
+      result = "ai_generated";
+    }
+    // No EXIF but low AI markers - could be screenshot or processed image
+    else if (aiConfidence > 0.45) {
+      result = "ai_modified";
+    }
+    else {
+      result = "original";
+    }
   }
-  // Has some EXIF but also AI artifacts = AI Modified
-  else if (exifScore > 0.3 && exifScore < 0.7 && aiConfidence > 0.4) {
-    result = "ai_modified";
-  }
-  // High confidence in either direction
-  else if (aiConfidence > 0.7) {
-    result = "ai_generated";
-  }
-  else if (aiConfidence < 0.3) {
-    result = "original";
-  }
-  // Middle ground
-  else if (aiConfidence > 0.5) {
-    result = "ai_modified";
-  }
+  // Moderate EXIF score
   else {
-    result = "original"; // Default to original if uncertain but leaning real
+    if (aiConfidence > 0.55) {
+      result = "ai_modified";
+    } else {
+      result = "original";
+    }
   }
   
   // Calculate display confidence

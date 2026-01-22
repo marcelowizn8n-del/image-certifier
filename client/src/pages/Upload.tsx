@@ -47,6 +47,8 @@ export default function Upload() {
   
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -215,16 +217,54 @@ export default function Upload() {
   const startCamera = async () => {
     try {
       setCameraError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
-      });
+      setNeedsUserGesture(false);
+      setCameraLoading(true);
+      
+      // Request camera with multiple fallback options for mobile compatibility
+      const constraints = {
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
+      
       if (videoRef.current) {
+        // Set muted to allow autoplay on mobile
+        videoRef.current.muted = true;
         videoRef.current.srcObject = stream;
+        
+        // Try to play immediately
+        try {
+          await videoRef.current.play();
+          setCameraLoading(false);
+        } catch (playError) {
+          console.log("Autoplay blocked, waiting for user gesture");
+          setCameraLoading(false);
+          setNeedsUserGesture(true);
+        }
       }
       setIsCameraActive(true);
     } catch (err) {
+      console.error("Camera error:", err);
+      setCameraLoading(false);
       setCameraError("Unable to access camera. Please check permissions.");
+    }
+  };
+
+  const playVideo = async () => {
+    if (videoRef.current) {
+      try {
+        await videoRef.current.play();
+        setNeedsUserGesture(false);
+      } catch (e) {
+        console.error("Manual play failed:", e);
+        setCameraError("Could not start video. Please try again.");
+      }
     }
   };
 
@@ -450,23 +490,31 @@ export default function Upload() {
                     {!isCameraActive && !preview ? (
                       <div className="text-center py-8">
                         <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <Button onClick={startCamera} data-testid="button-start-camera">
-                          Start Camera
+                        <Button onClick={startCamera} disabled={cameraLoading} data-testid="button-start-camera">
+                          {cameraLoading ? "Starting..." : "Start Camera"}
                         </Button>
                       </div>
                     ) : isCameraActive ? (
                       <div className="space-y-4">
-                        <div className="rounded-xl overflow-hidden border border-border">
+                        <div className="rounded-xl overflow-hidden border border-border relative">
                           <video
                             ref={videoRef}
                             autoPlay
                             playsInline
+                            muted
                             className="w-full"
                             data-testid="video-camera"
                           />
+                          {needsUserGesture && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                              <Button onClick={playVideo} size="lg" data-testid="button-tap-to-start">
+                                Tap to Start Camera
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex justify-center gap-2">
-                          <Button onClick={capturePhoto} data-testid="button-capture">
+                          <Button onClick={capturePhoto} disabled={needsUserGesture} data-testid="button-capture">
                             Capture Photo
                           </Button>
                           <Button variant="outline" onClick={stopCamera} data-testid="button-stop-camera">
