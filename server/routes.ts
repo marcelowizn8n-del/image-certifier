@@ -719,6 +719,61 @@ export async function registerRoutes(
     }
   });
 
+  // Seed products (admin only - for initial setup)
+  app.post("/api/stripe/seed-products", async (req, res) => {
+    try {
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+      
+      const products = [
+        {
+          name: 'Basic',
+          description: '100 análises por mês com histórico completo',
+          metadata: { tier: 'basic', analysisLimit: '100' },
+          price: 1990, // R$19.90 in centavos
+        },
+        {
+          name: 'Premium',
+          description: 'Análises ilimitadas com API access',
+          metadata: { tier: 'premium', analysisLimit: 'unlimited' },
+          price: 4990, // R$49.90 in centavos
+        },
+        {
+          name: 'Enterprise',
+          description: 'Múltiplos usuários com suporte dedicado',
+          metadata: { tier: 'enterprise', analysisLimit: 'unlimited' },
+          price: 19990, // R$199.90 in centavos
+        }
+      ];
+
+      const results = [];
+      
+      for (const prod of products) {
+        // Create product
+        const product = await stripe.products.create({
+          name: prod.name,
+          description: prod.description,
+          metadata: prod.metadata,
+        });
+
+        // Create price
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: prod.price,
+          currency: 'brl',
+          recurring: { interval: 'month' },
+        });
+
+        results.push({ product: product.id, price: price.id, name: prod.name });
+      }
+
+      res.json({ success: true, products: results });
+    } catch (error: any) {
+      console.error("Error seeding products:", error);
+      res.status(500).json({ message: error.message || "Failed to seed products" });
+    }
+  });
+
   app.post("/api/stripe/checkout", async (req, res) => {
     try {
       const { priceId, email } = req.body;
