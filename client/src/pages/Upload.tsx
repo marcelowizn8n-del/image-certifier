@@ -16,8 +16,11 @@ import {
   XCircle, 
   Link2, 
   Camera,
-  Sparkles
+  Sparkles,
+  Shield,
+  Info
 } from "lucide-react";
+import { SiInstagram, SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { DebugScoresCard } from "@/components/DebugScoresCard";
 import { AnalysisLoadingAnimation } from "@/components/AnalysisLoadingAnimation";
 import { Testimonials } from "@/components/Testimonials";
@@ -33,6 +36,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function Upload() {
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -569,6 +573,45 @@ export default function Upload() {
                   </>
                 )}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Social Media Tips */}
+          <Card className="max-w-2xl mx-auto border-border/50 bg-primary/5 mb-8" data-testid="card-social-tips">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="h-5 w-5 text-primary" />
+                {t('socialMedia.title')}
+              </CardTitle>
+              <CardDescription>
+                {t('socialMedia.subtitle')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-start gap-2 p-2 rounded-md bg-background/50" data-testid="tip-instagram">
+                  <SiInstagram className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">{t('socialMedia.instagram')}</span>
+                </div>
+                <div className="flex items-start gap-2 p-2 rounded-md bg-background/50" data-testid="tip-facebook">
+                  <SiFacebook className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">{t('socialMedia.facebook')}</span>
+                </div>
+                <div className="flex items-start gap-2 p-2 rounded-md bg-background/50" data-testid="tip-twitter">
+                  <SiX className="h-4 w-4 text-foreground mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">{t('socialMedia.twitter')}</span>
+                </div>
+                <div className="flex items-start gap-2 p-2 rounded-md bg-background/50" data-testid="tip-whatsapp">
+                  <SiWhatsapp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">{t('socialMedia.whatsapp')}</span>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 p-3 rounded-md bg-primary/10 border border-primary/20" data-testid="tip-warning">
+                <Info className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-foreground text-sm font-medium">
+                  {t('socialMedia.tip')}
+                </span>
+              </div>
             </CardContent>
           </Card>
 
