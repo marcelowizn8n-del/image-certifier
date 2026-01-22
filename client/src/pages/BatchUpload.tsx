@@ -14,7 +14,7 @@ import {
   Trash2
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import logoImage from "@assets/logo_imgcertifier_1769090162657.png";
+import logoImage from "@/assets/logo.png";
 import { Footer } from "@/components/Footer";
 
 interface BatchFile {

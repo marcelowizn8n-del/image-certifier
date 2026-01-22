@@ -20,7 +20,7 @@ import {
   Camera,
   Sparkles
 } from "lucide-react";
-import logoImage from "@assets/logo_imgcertifier_1769090162657.png";
+import logoImage from "@/assets/logo.png";
 import { DebugScoresCard } from "@/components/DebugScoresCard";
 import { AnalysisLoadingAnimation } from "@/components/AnalysisLoadingAnimation";
 import { Testimonials } from "@/components/Testimonials";
