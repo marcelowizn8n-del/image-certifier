@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { analyzeImageSchema, analyzeUrlSchema } from "@shared/schema";
+import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema } from "@shared/schema";
 import sharp from "sharp";
 import ExifParser from "exif-parser";
 import OpenAI from "openai";
@@ -578,6 +578,64 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error analyzing URL:", error);
       res.status(500).json({ message: "Failed to analyze image from URL" });
+    }
+  });
+
+  // User management endpoints for admin
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      const safeUsers = users.map(({ password, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const parsed = updateUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+
+      const user = await storage.updateUser(req.params.id, parsed.data);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteUser(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
     }
   });
 

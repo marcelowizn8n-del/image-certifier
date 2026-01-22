@@ -3,18 +3,34 @@ import { pgTable, text, varchar, integer, timestamp, boolean, jsonb } from "driz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export type UserRole = "user" | "admin";
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").$type<UserRole>().default("user").notNull(),
+  isPremium: boolean("is_premium").default(false).notNull(),
+  isFreeAccount: boolean("is_free_account").default(false).notNull(),
+  analysisCount: integer("analysis_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
+  email: true,
   password: true,
 });
 
+export const updateUserSchema = z.object({
+  isPremium: z.boolean().optional(),
+  isFreeAccount: z.boolean().optional(),
+  role: z.enum(["user", "admin"]).optional(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // Analysis result types

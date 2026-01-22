@@ -1,17 +1,25 @@
-import { type Analysis, type InsertAnalysis } from "@shared/schema";
+import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
   getAnalyses(): Promise<Analysis[]>;
   getAnalysis(id: string): Promise<Analysis | undefined>;
   createAnalysis(analysis: InsertAnalysis): Promise<Analysis>;
+  getUsers(): Promise<User[]>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: UpdateUser): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private analyses: Map<string, Analysis>;
+  private users: Map<string, User>;
 
   constructor() {
     this.analyses = new Map();
+    this.users = new Map();
   }
 
   async getAnalyses(): Promise<Analysis[]> {
@@ -33,6 +41,53 @@ export class MemStorage implements IStorage {
     };
     this.analyses.set(id, analysis);
     return analysis;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      id,
+      username: insertUser.username,
+      email: insertUser.email,
+      password: insertUser.password,
+      role: "user",
+      isPremium: false,
+      isFreeAccount: false,
+      analysisCount: 0,
+      createdAt: new Date(),
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async updateUser(id: string, updates: UpdateUser): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser: User = {
+      ...user,
+      ...updates,
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
   }
 }
 
