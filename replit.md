@@ -8,6 +8,30 @@ Image Certifier is a web application that detects whether images are AI-generate
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Internationalization System (i18n)
+- Added multi-language support: Portuguese, English, Spanish, French, German, Chinese
+- Language selector in header with language code display (PT, EN, ES, FR, DE, ZH)
+- Translations stored in `client/src/lib/i18n.ts`
+- LanguageContext provider in `client/src/contexts/LanguageContext.tsx`
+- Language preference persisted to localStorage
+
+### Admin Dashboard
+- New Admin page at `/admin` with statistics cards
+- Shows total analyses, original images, AI-generated, and AI-modified counts
+- Displays recent analysis history
+
+### Footer & Legal Pages
+- Footer with MFA developer logo, contact email, and legal links
+- Privacy Policy page at `/privacy`
+- Terms of Use page at `/terms`
+- About page at `/about` with features list
+
+### Component Refactoring
+- Extracted reusable Header component with navigation
+- Extracted reusable Footer component
+
 ## System Architecture
 
 ### Frontend Architecture
