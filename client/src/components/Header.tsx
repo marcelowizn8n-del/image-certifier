@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { History, Layers, Settings, Upload } from "lucide-react";
+import { History, Layers, Settings, Upload, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -14,6 +14,7 @@ export function Header() {
     { path: "/", label: t('nav.upload'), icon: Upload },
     { path: "/dashboard", label: t('nav.dashboard'), icon: History },
     { path: "/batch", label: t('nav.batch'), icon: Layers },
+    { path: "/pricing", label: t('nav.pricing'), icon: CreditCard },
     { path: "/admin", label: t('nav.admin'), icon: Settings },
   ];
 
