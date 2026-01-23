@@ -1,0 +1,28 @@
+{
+  "name": "Image Certifier - AI Image Detection",
+  "short_name": "ImgCertifier",
+  "description": "Detect AI-generated images and verify image authenticity with advanced AI technology",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity", "security"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}
