@@ -10,7 +10,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { analyzeVideoWithRealityDefender, isRealityDefenderConfigured } from "./realityDefenderClient";
+import { analyzeVideoWithGPT4V, isVideoAnalysisConfigured } from "./videoAnalysisClient";
 
 // Admin authentication middleware
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -697,9 +697,9 @@ export async function registerRoutes(
 
       const { videoData, filename } = parsed.data;
 
-      if (!isRealityDefenderConfigured()) {
+      if (!isVideoAnalysisConfigured()) {
         return res.status(503).json({ 
-          message: "Video analysis is not configured. Please set up REALITY_DEFENDER_API_KEY." 
+          message: "Video analysis is not configured. OpenAI API key not found." 
         });
       }
 
@@ -717,8 +717,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Video size exceeds 50MB limit" });
       }
 
-      // Analyze video with Reality Defender
-      const detectionResult = await analyzeVideoWithRealityDefender(videoBuffer, filename);
+      // Analyze video with GPT-4 Vision
+      const detectionResult = await analyzeVideoWithGPT4V(videoBuffer, filename);
 
       // Determine result based on manipulation probability
       let result: VideoAnalysisResult;
@@ -768,9 +768,9 @@ export async function registerRoutes(
 
   app.get("/api/video-analysis-status", (req, res) => {
     res.json({ 
-      configured: isRealityDefenderConfigured(),
-      provider: "Reality Defender",
-      freeQuota: "50 analyses/month"
+      configured: isVideoAnalysisConfigured(),
+      provider: "GPT-4 Vision",
+      freeQuota: "Unlimited (uses OpenAI credits)"
     });
   });
 

@@ -23,78 +23,7 @@ interface VideoAnalysisResult {
   };
 }
 
-async function extractFrames(videoBuffer: Buffer, numFrames: number = 5): Promise<string[]> {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-frames-'));
-  const videoPath = path.join(tempDir, 'input.mp4');
-  
-  await fs.writeFile(videoPath, videoBuffer);
-  
-  const framePattern = path.join(tempDir, 'frame-%03d.jpg');
-  
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', [
-      '-i', videoPath,
-      '-vf', `select='eq(n,0)+eq(n,floor(n_frames/${numFrames}))+eq(n,floor(2*n_frames/${numFrames}))+eq(n,floor(3*n_frames/${numFrames}))+eq(n,floor(4*n_frames/${numFrames}))',setpts=N/FRAME_RATE/TB`,
-      '-vsync', 'vfr',
-      '-frames:v', numFrames.toString(),
-      '-q:v', '2',
-      framePattern,
-      '-y'
-    ]);
-    
-    let stderr = '';
-    ffmpeg.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-    
-    ffmpeg.on('close', async (code) => {
-      if (code !== 0) {
-        const simpleExtract = spawn('ffmpeg', [
-          '-i', videoPath,
-          '-vf', `fps=1/${Math.max(1, Math.floor(10 / numFrames))}`,
-          '-frames:v', numFrames.toString(),
-          '-q:v', '2',
-          framePattern,
-          '-y'
-        ]);
-        
-        simpleExtract.on('close', async (code2) => {
-          try {
-            const files = await fs.readdir(tempDir);
-            const frameFiles = files
-              .filter(f => f.startsWith('frame-') && f.endsWith('.jpg'))
-              .sort()
-              .map(f => path.join(tempDir, f));
-            
-            if (frameFiles.length === 0) {
-              reject(new Error('Failed to extract frames from video'));
-              return;
-            }
-            
-            resolve(frameFiles);
-          } catch (err) {
-            reject(err);
-          }
-        });
-        return;
-      }
-      
-      try {
-        const files = await fs.readdir(tempDir);
-        const frameFiles = files
-          .filter(f => f.startsWith('frame-') && f.endsWith('.jpg'))
-          .sort()
-          .map(f => path.join(tempDir, f));
-        
-        resolve(frameFiles);
-      } catch (err) {
-        reject(err);
-      }
-    });
-  });
-}
-
-async function analyzeFrameWithGPT4V(frameBase64: string): Promise<{
+interface FrameAnalysis {
   isManipulated: boolean;
   confidence: number;
   indicators: {
@@ -104,13 +33,87 @@ async function analyzeFrameWithGPT4V(frameBase64: string): Promise<{
     lip_sync_issues: boolean;
   };
   explanation: string;
-}> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: `You are an expert in detecting AI-generated and manipulated video frames, specifically deepfakes. Analyze the provided video frame for signs of manipulation.
+}
+
+async function getVideoDuration(videoPath: string): Promise<number> {
+  return new Promise((resolve) => {
+    const ffprobe = spawn('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      videoPath
+    ]);
+    
+    let output = '';
+    ffprobe.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    ffprobe.on('close', () => {
+      const duration = parseFloat(output.trim());
+      resolve(isNaN(duration) ? 10 : duration);
+    });
+    
+    ffprobe.on('error', () => {
+      resolve(10);
+    });
+  });
+}
+
+async function extractFrames(videoBuffer: Buffer, numFrames: number = 5): Promise<string[]> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-frames-'));
+  const videoPath = path.join(tempDir, 'input.mp4');
+  
+  await fs.writeFile(videoPath, videoBuffer);
+  
+  const duration = await getVideoDuration(videoPath);
+  const fps = Math.max(0.5, numFrames / duration);
+  
+  const framePattern = path.join(tempDir, 'frame-%03d.jpg');
+  
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', videoPath,
+      '-vf', `fps=${fps}`,
+      '-frames:v', numFrames.toString(),
+      '-q:v', '2',
+      framePattern,
+      '-y'
+    ]);
+    
+    ffmpeg.on('close', async (code) => {
+      try {
+        const files = await fs.readdir(tempDir);
+        const frameFiles = files
+          .filter(f => f.startsWith('frame-') && f.endsWith('.jpg'))
+          .sort()
+          .map(f => path.join(tempDir, f));
+        
+        if (frameFiles.length === 0) {
+          reject(new Error('Failed to extract frames from video'));
+          return;
+        }
+        
+        resolve(frameFiles);
+      } catch (err) {
+        reject(err);
+      }
+    });
+    
+    ffmpeg.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+async function analyzeFrameWithGPT4V(frameBase64: string): Promise<FrameAnalysis> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert in detecting AI-generated and manipulated video frames, specifically deepfakes. Analyze the provided video frame for signs of manipulation.
 
 Look for these indicators:
 1. Facial artifacts: Unnatural skin texture, blurry face edges, inconsistent lighting on face
@@ -130,44 +133,83 @@ Respond ONLY with valid JSON in this exact format:
   },
   "explanation": "brief explanation"
 }`
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Analyze this video frame for signs of deepfake or AI manipulation. Is this frame from an authentic video or has it been manipulated?"
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:image/jpeg;base64,${frameBase64}`,
-              detail: "high"
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Analyze this video frame for signs of deepfake or AI manipulation. Is this frame from an authentic video or has it been manipulated?"
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${frameBase64}`,
+                detail: "high"
+              }
             }
-          }
-        ]
-      }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 500,
-  });
+          ]
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 500,
+    });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from GPT-4 Vision');
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from GPT-4 Vision');
+    }
+
+    const parsed = JSON.parse(content);
+    
+    return {
+      isManipulated: Boolean(parsed.isManipulated),
+      confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5,
+      indicators: {
+        facial_artifacts: Boolean(parsed.indicators?.facial_artifacts),
+        blinking_anomalies: Boolean(parsed.indicators?.blinking_anomalies),
+        background_artifacts: Boolean(parsed.indicators?.background_artifacts),
+        lip_sync_issues: Boolean(parsed.indicators?.lip_sync_issues),
+      },
+      explanation: String(parsed.explanation || 'Analysis complete'),
+    };
+  } catch (error) {
+    console.error('Error analyzing frame:', error);
+    return {
+      isManipulated: false,
+      confidence: 0.3,
+      indicators: {
+        facial_artifacts: false,
+        blinking_anomalies: false,
+        background_artifacts: false,
+        lip_sync_issues: false,
+      },
+      explanation: 'Could not analyze this frame',
+    };
   }
+}
 
-  return JSON.parse(content);
+async function cleanupTempDir(tempDir: string): Promise<void> {
+  try {
+    const files = await fs.readdir(tempDir);
+    for (const file of files) {
+      try {
+        await fs.unlink(path.join(tempDir, file));
+      } catch (e) {}
+    }
+    await fs.rmdir(tempDir);
+  } catch (e) {}
 }
 
 export async function analyzeVideoWithGPT4V(
   videoBuffer: Buffer,
   filename: string
 ): Promise<VideoAnalysisResult> {
-  let framePaths: string[] = [];
+  let tempDir: string | null = null;
   
   try {
-    framePaths = await extractFrames(videoBuffer, 5);
+    const framePaths = await extractFrames(videoBuffer, 5);
+    tempDir = path.dirname(framePaths[0]);
     
     if (framePaths.length === 0) {
       throw new Error('No frames could be extracted from video');
@@ -181,33 +223,37 @@ export async function analyzeVideoWithGPT4V(
       })
     );
 
-    const manipulatedCount = frameAnalyses.filter(a => a.isManipulated).length;
-    const totalFrames = frameAnalyses.length;
-    const manipulationProbability = manipulatedCount / totalFrames;
+    const validAnalyses = frameAnalyses.filter(a => a.confidence > 0.2);
     
-    const avgConfidence = frameAnalyses.reduce((sum, a) => sum + a.confidence, 0) / totalFrames;
+    if (validAnalyses.length === 0) {
+      return {
+        manipulation_probability: 0,
+        is_deepfake: false,
+        confidence: 0.3,
+        indicators: {},
+      };
+    }
+
+    const totalWeight = validAnalyses.reduce((sum, a) => sum + a.confidence, 0);
+    const weightedManipulation = validAnalyses.reduce(
+      (sum, a) => sum + (a.isManipulated ? a.confidence : 0),
+      0
+    );
+    const manipulationProbability = weightedManipulation / totalWeight;
+    
+    const avgConfidence = validAnalyses.reduce((sum, a) => sum + a.confidence, 0) / validAnalyses.length;
+    
+    const manipulatedCount = validAnalyses.filter(a => a.isManipulated).length;
+    const totalFrames = validAnalyses.length;
     
     const indicators = {
-      facial_artifacts: frameAnalyses.some(a => a.indicators.facial_artifacts),
-      temporal_inconsistencies: manipulatedCount > 1 && manipulatedCount < totalFrames,
+      facial_artifacts: validAnalyses.filter(a => a.indicators.facial_artifacts).length > totalFrames * 0.3,
+      temporal_inconsistencies: manipulatedCount >= 2 && manipulatedCount < totalFrames,
       audio_video_mismatch: false,
-      lip_sync_issues: frameAnalyses.some(a => a.indicators.lip_sync_issues),
-      blinking_anomalies: frameAnalyses.some(a => a.indicators.blinking_anomalies),
-      background_artifacts: frameAnalyses.some(a => a.indicators.background_artifacts),
+      lip_sync_issues: validAnalyses.filter(a => a.indicators.lip_sync_issues).length > totalFrames * 0.3,
+      blinking_anomalies: validAnalyses.filter(a => a.indicators.blinking_anomalies).length > totalFrames * 0.3,
+      background_artifacts: validAnalyses.filter(a => a.indicators.background_artifacts).length > totalFrames * 0.3,
     };
-
-    for (const framePath of framePaths) {
-      try {
-        await fs.unlink(framePath);
-      } catch (e) {}
-    }
-    
-    const tempDir = path.dirname(framePaths[0]);
-    try {
-      const inputVideo = path.join(tempDir, 'input.mp4');
-      await fs.unlink(inputVideo);
-      await fs.rmdir(tempDir);
-    } catch (e) {}
 
     return {
       manipulation_probability: manipulationProbability,
@@ -215,13 +261,10 @@ export async function analyzeVideoWithGPT4V(
       confidence: avgConfidence,
       indicators,
     };
-  } catch (error) {
-    for (const framePath of framePaths) {
-      try {
-        await fs.unlink(framePath);
-      } catch (e) {}
+  } finally {
+    if (tempDir) {
+      await cleanupTempDir(tempDir);
     }
-    throw error;
   }
 }
 
