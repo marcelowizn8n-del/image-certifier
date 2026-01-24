@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import NotFound from "@/pages/not-found";
 import Upload from "@/pages/Upload";
+import VideoUpload from "@/pages/VideoUpload";
 import Dashboard from "@/pages/Dashboard";
 import BatchUpload from "@/pages/BatchUpload";
 import Admin from "@/pages/Admin";
@@ -19,6 +20,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Upload} />
+      <Route path="/video" component={VideoUpload} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/batch" component={BatchUpload} />
       <Route path="/admin" component={Admin} />
