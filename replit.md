@@ -10,6 +10,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Mobile App (React Native / Expo) - Jan 2026
+- Created React Native mobile app in `/mobile` directory
+- Using Expo SDK 51 with TypeScript and Expo Router
+- Tab-based navigation: Analyze, History, Settings
+- 6 language support (PT, EN, ES, FR, DE, ZH) via i18next
+- Dark/Light/Auto theme support
+- Camera and image picker integration (expo-camera, expo-image-picker)
+- Connects to existing Express.js backend API
+- Ready for EAS Build to publish to Apple App Store and Google Play
+- Key files:
+  - `mobile/app/` - Expo Router screens
+  - `mobile/src/lib/api.ts` - Backend API client
+  - `mobile/src/lib/i18n.ts` - Translations
+  - `mobile/src/contexts/` - Theme and Language contexts
+
 ### Certification Watermarks (Jan 2026)
 - Download certified images with visual seal/watermark
 - Three seal types: ORIGINAL (green), AI GENERATED (red), AI MODIFIED (orange)
