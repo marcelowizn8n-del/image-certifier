@@ -18,8 +18,10 @@ import {
   Camera,
   Sparkles,
   Shield,
-  Info
+  Info,
+  Download
 } from "lucide-react";
+import { applyWatermark, downloadImage, type CertificationType } from "@/lib/watermark";
 import { SiInstagram, SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { DebugScoresCard } from "@/components/DebugScoresCard";
 import { AnalysisLoadingAnimation } from "@/components/AnalysisLoadingAnimation";
@@ -53,6 +55,7 @@ export default function Upload() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [needsUserGesture, setNeedsUserGesture] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -354,6 +357,34 @@ export default function Upload() {
     setError(null);
     setProgress(0);
     setImageUrl("");
+  };
+
+  const handleDownloadWithWatermark = async () => {
+    if (!preview || !result) return;
+    
+    setIsDownloading(true);
+    try {
+      let certType: CertificationType = 'original';
+      if (result.result === 'ai_generated') {
+        certType = 'ai-generated';
+      } else if (result.result === 'ai_modified') {
+        certType = 'ai-modified';
+      }
+      
+      const watermarkedImage = await applyWatermark(preview, certType);
+      const filename = `certified-${certType}-${Date.now()}.png`;
+      downloadImage(watermarkedImage, filename);
+      
+      toast.success(t('download.success') || "Download Complete", {
+        description: t('download.description') || "Image with certification seal downloaded successfully.",
+      });
+    } catch (err) {
+      toast.error(t('download.error') || "Download Failed", {
+        description: "Failed to apply watermark to image.",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -685,7 +716,24 @@ export default function Upload() {
 
               <DebugScoresCard debugScores={result.debugScores || null} />
 
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3 flex-wrap">
+                <Button 
+                  onClick={handleDownloadWithWatermark} 
+                  disabled={isDownloading}
+                  data-testid="button-download-certified"
+                >
+                  {isDownloading ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      {t('download.processing') || "Processing..."}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      {t('download.button') || "Download with Seal"}
+                    </>
+                  )}
+                </Button>
                 <Button variant="outline" onClick={resetAnalysis} data-testid="button-analyze-another">
                   Analyze Another Image
                 </Button>
