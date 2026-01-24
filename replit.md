@@ -10,6 +10,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Certification Watermarks (Jan 2026)
+- Download certified images with visual seal/watermark
+- Three seal types: ORIGINAL (green), AI GENERATED (red), AI MODIFIED (orange)
+- Seal placed in bottom-right corner with IC logo
+- Implemented in `client/src/lib/watermark.ts` using HTML5 Canvas
+
+### PWA Support (Jan 2026)
+- Progressive Web App enabled for mobile installation
+- manifest.json with app icons and theme colors
+- Service worker for offline functionality
+- Apple Touch Icon and meta tags for iOS support
+
 ### Internationalization System (i18n)
 - Added multi-language support: Portuguese, English, Spanish, French, German, Chinese
 - Language selector in header with language code display (PT, EN, ES, FR, DE, ZH)
