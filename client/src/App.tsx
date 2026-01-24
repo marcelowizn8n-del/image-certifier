@@ -15,6 +15,7 @@ import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import About from "@/pages/About";
 import Pricing from "@/pages/Pricing";
+import Manual from "@/pages/Manual";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/batch" component={BatchUpload} />
       <Route path="/admin" component={Admin} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/manual" component={Manual} />
       <Route path="/checkout/success" component={Upload} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
