@@ -24,6 +24,20 @@ interface DetectionResult {
   };
 }
 
+function getContentType(filename: string): string {
+  const extension = filename.toLowerCase().split('.').pop();
+  switch (extension) {
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mov':
+      return 'video/quicktime';
+    default:
+      return 'video/mp4';
+  }
+}
+
 export async function analyzeVideoWithRealityDefender(
   videoBuffer: Buffer,
   filename: string
@@ -49,12 +63,13 @@ export async function analyzeVideoWithRealityDefender(
 
   const presignedData = await presignedResponse.json() as PresignedUrlResponse;
 
-  // Step 2: Upload video to presigned URL
+  // Step 2: Upload video to presigned URL with correct Content-Type
+  const contentType = getContentType(filename);
   const uploadResponse = await fetch(presignedData.presignedUrl, {
     method: 'PUT',
     body: videoBuffer,
     headers: {
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
     },
   });
 
