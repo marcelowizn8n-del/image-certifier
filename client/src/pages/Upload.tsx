@@ -56,6 +56,7 @@ export default function Upload() {
   const [needsUserGesture, setNeedsUserGesture] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [certifiedPreview, setCertifiedPreview] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -69,12 +70,27 @@ export default function Upload() {
     };
   }, []);
 
+  const applySealToPreview = async (analysisResult: Analysis, imageData: string) => {
+    try {
+      let certType: CertificationType = 'original';
+      if (analysisResult.result === 'ai_generated') {
+        certType = 'ai-generated';
+      } else if (analysisResult.result === 'ai_modified') {
+        certType = 'ai-modified';
+      }
+      const watermarkedImage = await applyWatermark(imageData, certType);
+      setCertifiedPreview(watermarkedImage);
+    } catch (err) {
+      console.error("Failed to apply seal:", err);
+    }
+  };
+
   const analyzeMutation = useMutation({
     mutationFn: async (data: { imageData: string; filename: string }) => {
       const response = await apiRequest("POST", "/api/analyze", data);
       return await response.json() as Analysis;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setResult(data);
       setIsAnalyzing(false);
       setProgress(100);
@@ -82,6 +98,9 @@ export default function Upload() {
         description: "Your image has been analyzed successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/analyses"] });
+      if (preview) {
+        await applySealToPreview(data, preview);
+      }
     },
     onError: (error: Error) => {
       setError(error.message);
@@ -98,13 +117,29 @@ export default function Upload() {
       const response = await apiRequest("POST", "/api/analyze-url", { url });
       return await response.json() as Analysis;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setResult(data);
       setIsAnalyzing(false);
       setProgress(100);
       toast.success("Analysis Complete", {
         description: "Your image has been analyzed successfully.",
       });
+      if (imageUrl) {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const dataUrl = e.target?.result as string;
+            if (dataUrl) {
+              await applySealToPreview(data, dataUrl);
+            }
+          };
+          reader.readAsDataURL(blob);
+        } catch (err) {
+          console.error("Failed to fetch image for seal:", err);
+        }
+      }
     },
     onError: (error: Error) => {
       setError(error.message);
@@ -357,10 +392,11 @@ export default function Upload() {
     setError(null);
     setProgress(0);
     setImageUrl("");
+    setCertifiedPreview(null);
   };
 
   const handleDownloadWithWatermark = async () => {
-    if (!preview || !result) return;
+    if (!result) return;
     
     setIsDownloading(true);
     try {
@@ -371,9 +407,13 @@ export default function Upload() {
         certType = 'ai-modified';
       }
       
-      const watermarkedImage = await applyWatermark(preview, certType);
+      const imageToDownload = certifiedPreview || (preview ? await applyWatermark(preview, certType) : null);
+      if (!imageToDownload) {
+        throw new Error("No image available");
+      }
+      
       const filename = `certified-${certType}-${Date.now()}.png`;
-      downloadImage(watermarkedImage, filename);
+      downloadImage(imageToDownload, filename);
       
       toast.success(t('download.success') || "Download Complete", {
         description: t('download.description') || "Image with certification seal downloaded successfully.",
@@ -649,6 +689,28 @@ export default function Upload() {
           {/* Results */}
           {result && (
             <div className="max-w-2xl mx-auto space-y-6 mb-8">
+              {/* Certified Image Preview */}
+              {certifiedPreview && (
+                <Card className="border-border/50" data-testid="card-certified-image">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      {t('result.certifiedImage') || "Certified Image"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-xl overflow-hidden border border-border">
+                      <img
+                        src={certifiedPreview}
+                        alt="Certified preview"
+                        className="w-full object-contain bg-muted/20"
+                        data-testid="img-certified-preview"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card className="border-border/50" data-testid="card-result">
                 <CardHeader>
                   <div className="flex items-center gap-4">

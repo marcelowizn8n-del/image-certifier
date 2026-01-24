@@ -36,7 +36,7 @@ export async function applyWatermark(
 
         ctx.drawImage(img, 0, 0);
 
-        const sealSize = Math.min(img.width, img.height) * 0.25;
+        const sealSize = Math.min(img.width, img.height) * 0.15;
         const margin = sealSize * 0.1;
         const sealX = canvas.width - sealSize - margin;
         const sealY = canvas.height - sealSize - margin;
