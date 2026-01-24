@@ -94,3 +94,47 @@ export const analyzeUrlSchema = z.object({
 
 export type AnalyzeImageInput = z.infer<typeof analyzeImageSchema>;
 export type AnalyzeUrlInput = z.infer<typeof analyzeUrlSchema>;
+
+// Video analysis result types
+export type VideoAnalysisResult = "authentic" | "deepfake" | "manipulated" | "uncertain";
+
+export const videoAnalyses = pgTable("video_analyses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  filename: text("filename").notNull(),
+  result: text("result").$type<VideoAnalysisResult>().notNull(),
+  confidence: integer("confidence").notNull(),
+  manipulationScore: integer("manipulation_score").notNull(),
+  indicators: jsonb("indicators").$type<{
+    facialArtifacts: boolean;
+    temporalInconsistencies: boolean;
+    audioVideoMismatch: boolean;
+    lipSyncIssues: boolean;
+    blinkingAnomalies: boolean;
+    backgroundArtifacts: boolean;
+  }>().notNull(),
+  metadata: jsonb("metadata").$type<{
+    duration: number;
+    width: number;
+    height: number;
+    format: string;
+    size: number;
+    fps?: number;
+  }>().notNull(),
+  thumbnailData: text("thumbnail_data"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertVideoAnalysisSchema = createInsertSchema(videoAnalyses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertVideoAnalysis = z.infer<typeof insertVideoAnalysisSchema>;
+export type VideoAnalysis = typeof videoAnalyses.$inferSelect;
+
+export const analyzeVideoSchema = z.object({
+  videoData: z.string(),
+  filename: z.string(),
+});
+
+export type AnalyzeVideoInput = z.infer<typeof analyzeVideoSchema>;

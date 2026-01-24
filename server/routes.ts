@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema } from "@shared/schema";
+import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema, analyzeVideoSchema, type VideoAnalysisResult } from "@shared/schema";
 import sharp from "sharp";
 import ExifParser from "exif-parser";
 import OpenAI from "openai";
@@ -10,6 +10,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
+import { analyzeVideoWithRealityDefender, isRealityDefenderConfigured } from "./realityDefenderClient";
 
 // Admin authentication middleware
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -661,6 +662,116 @@ export async function registerRoutes(
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
     }
+  });
+
+  // Video Analysis Routes
+  app.get("/api/video-analyses", async (req, res) => {
+    try {
+      const videoAnalyses = await storage.getVideoAnalyses();
+      res.json(videoAnalyses);
+    } catch (error) {
+      console.error("Error fetching video analyses:", error);
+      res.status(500).json({ message: "Failed to fetch video analyses" });
+    }
+  });
+
+  app.get("/api/video-analyses/:id", async (req, res) => {
+    try {
+      const analysis = await storage.getVideoAnalysis(req.params.id);
+      if (!analysis) {
+        return res.status(404).json({ message: "Video analysis not found" });
+      }
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error fetching video analysis:", error);
+      res.status(500).json({ message: "Failed to fetch video analysis" });
+    }
+  });
+
+  app.post("/api/analyze-video", async (req, res) => {
+    try {
+      const parsed = analyzeVideoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+
+      const { videoData, filename } = parsed.data;
+
+      if (!isRealityDefenderConfigured()) {
+        return res.status(503).json({ 
+          message: "Video analysis is not configured. Please set up REALITY_DEFENDER_API_KEY." 
+        });
+      }
+
+      // Extract base64 data
+      const base64Match = videoData.match(/^data:video\/\w+;base64,(.+)$/);
+      if (!base64Match) {
+        return res.status(400).json({ message: "Invalid video data format" });
+      }
+
+      const videoBuffer = Buffer.from(base64Match[1], 'base64');
+      const videoSize = videoBuffer.length;
+
+      // Limit video size to 50MB
+      if (videoSize > 50 * 1024 * 1024) {
+        return res.status(400).json({ message: "Video size exceeds 50MB limit" });
+      }
+
+      // Analyze video with Reality Defender
+      const detectionResult = await analyzeVideoWithRealityDefender(videoBuffer, filename);
+
+      // Determine result based on manipulation probability
+      let result: VideoAnalysisResult;
+      const manipulationScore = Math.round(detectionResult.manipulation_probability * 100);
+
+      if (manipulationScore >= 70) {
+        result = "deepfake";
+      } else if (manipulationScore >= 40) {
+        result = "manipulated";
+      } else if (manipulationScore <= 20) {
+        result = "authentic";
+      } else {
+        result = "uncertain";
+      }
+
+      const analysis = await storage.createVideoAnalysis({
+        filename,
+        result,
+        confidence: Math.round(detectionResult.confidence * 100),
+        manipulationScore,
+        indicators: {
+          facialArtifacts: detectionResult.indicators?.facial_artifacts || false,
+          temporalInconsistencies: detectionResult.indicators?.temporal_inconsistencies || false,
+          audioVideoMismatch: detectionResult.indicators?.audio_video_mismatch || false,
+          lipSyncIssues: detectionResult.indicators?.lip_sync_issues || false,
+          blinkingAnomalies: detectionResult.indicators?.blinking_anomalies || false,
+          backgroundArtifacts: detectionResult.indicators?.background_artifacts || false,
+        },
+        metadata: {
+          duration: 0,
+          width: 0,
+          height: 0,
+          format: filename.split('.').pop() || 'mp4',
+          size: videoSize,
+        },
+        thumbnailData: null,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing video:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to analyze video" 
+      });
+    }
+  });
+
+  app.get("/api/video-analysis-status", (req, res) => {
+    res.json({ 
+      configured: isRealityDefenderConfigured(),
+      provider: "Reality Defender",
+      freeQuota: "50 analyses/month"
+    });
   });
 
   // Stripe routes

@@ -1,10 +1,13 @@
-import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser } from "@shared/schema";
+import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser, type VideoAnalysis, type InsertVideoAnalysis } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
   getAnalyses(): Promise<Analysis[]>;
   getAnalysis(id: string): Promise<Analysis | undefined>;
   createAnalysis(analysis: InsertAnalysis): Promise<Analysis>;
+  getVideoAnalyses(): Promise<VideoAnalysis[]>;
+  getVideoAnalysis(id: string): Promise<VideoAnalysis | undefined>;
+  createVideoAnalysis(analysis: InsertVideoAnalysis): Promise<VideoAnalysis>;
   getUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -15,10 +18,12 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private analyses: Map<string, Analysis>;
+  private videoAnalyses: Map<string, VideoAnalysis>;
   private users: Map<string, User>;
 
   constructor() {
     this.analyses = new Map();
+    this.videoAnalyses = new Map();
     this.users = new Map();
   }
 
@@ -40,6 +45,27 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.analyses.set(id, analysis);
+    return analysis;
+  }
+
+  async getVideoAnalyses(): Promise<VideoAnalysis[]> {
+    return Array.from(this.videoAnalyses.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getVideoAnalysis(id: string): Promise<VideoAnalysis | undefined> {
+    return this.videoAnalyses.get(id);
+  }
+
+  async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
+    const id = randomUUID();
+    const analysis: VideoAnalysis = {
+      ...insertAnalysis,
+      id,
+      createdAt: new Date(),
+    };
+    this.videoAnalyses.set(id, analysis);
     return analysis;
   }
 
