@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema } from "@shared/schema";
@@ -9,6 +9,26 @@ import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+
+// Admin authentication middleware
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+
+if (!ADMIN_SECRET) {
+  console.error('ADMIN_SECRET environment variable is not set. Admin endpoints will be unavailable.');
+}
+
+const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (!ADMIN_SECRET) {
+    return res.status(500).json({ message: "Admin authentication not configured" });
+  }
+  
+  const adminKey = req.headers['x-admin-key'] as string;
+  if (adminKey && adminKey === ADMIN_SECRET) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized - Admin access required" });
+};
 
 // Initialize OpenAI client for AI-powered analysis
 const openai = new OpenAI({
@@ -801,6 +821,177 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating checkout session:", error);
       res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  // Admin: Get all Stripe customers with subscriptions
+  app.get("/api/admin/customers", adminAuthMiddleware, async (req, res) => {
+    try {
+      const result = await db.execute(
+        sql`
+          SELECT 
+            c.id as customer_id,
+            c.email,
+            c.name,
+            c.created,
+            c.metadata,
+            s.id as subscription_id,
+            s.status as subscription_status,
+            s.current_period_start,
+            s.current_period_end,
+            s.cancel_at_period_end,
+            p.name as product_name,
+            pr.unit_amount,
+            pr.currency
+          FROM stripe.customers c
+          LEFT JOIN stripe.subscriptions s ON s.customer = c.id
+          LEFT JOIN stripe.prices pr ON s.items @> jsonb_build_array(jsonb_build_object('price', pr.id))
+          LEFT JOIN stripe.products p ON pr.product = p.id
+          ORDER BY c.created DESC
+        `
+      );
+      res.json({ data: result.rows });
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  // Admin: Get subscription stats
+  app.get("/api/admin/subscription-stats", adminAuthMiddleware, async (req, res) => {
+    try {
+      const customersResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.customers`);
+      const activeSubsResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.subscriptions WHERE status = 'active'`);
+      const canceledSubsResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.subscriptions WHERE status = 'canceled'`);
+      const revenueResult = await db.execute(sql`
+        SELECT COALESCE(SUM(pr.unit_amount), 0) as mrr
+        FROM stripe.subscriptions s
+        JOIN stripe.prices pr ON s.items @> jsonb_build_array(jsonb_build_object('price', pr.id))
+        WHERE s.status = 'active'
+      `);
+
+      res.json({
+        totalCustomers: parseInt((customersResult.rows[0] as any)?.count || '0'),
+        activeSubscriptions: parseInt((activeSubsResult.rows[0] as any)?.count || '0'),
+        canceledSubscriptions: parseInt((canceledSubsResult.rows[0] as any)?.count || '0'),
+        monthlyRevenue: parseInt((revenueResult.rows[0] as any)?.mrr || '0'),
+      });
+    } catch (error) {
+      console.error("Error fetching subscription stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Admin: Update product price (creates new price in Stripe)
+  app.post("/api/admin/update-price", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { productId, newAmount, currency = 'brl' } = req.body;
+      
+      if (!productId || !newAmount) {
+        return res.status(400).json({ message: "Product ID and new amount are required" });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Deactivate old price
+      const oldPrices = await stripe.prices.list({ product: productId, active: true });
+      for (const oldPrice of oldPrices.data) {
+        await stripe.prices.update(oldPrice.id, { active: false });
+      }
+
+      // Create new price
+      const newPrice = await stripe.prices.create({
+        product: productId,
+        unit_amount: Math.round(newAmount * 100), // Convert to centavos
+        currency,
+        recurring: { interval: 'month' },
+      });
+
+      res.json({ success: true, price: newPrice });
+    } catch (error: any) {
+      console.error("Error updating price:", error);
+      res.status(500).json({ message: error.message || "Failed to update price" });
+    }
+  });
+
+  // Admin: Cancel subscription
+  app.post("/api/admin/cancel-subscription", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { subscriptionId, immediately = false } = req.body;
+      
+      if (!subscriptionId) {
+        return res.status(400).json({ message: "Subscription ID is required" });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      let subscription;
+      if (immediately) {
+        subscription = await stripe.subscriptions.cancel(subscriptionId);
+      } else {
+        subscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: true,
+        });
+      }
+
+      res.json({ success: true, subscription });
+    } catch (error: any) {
+      console.error("Error canceling subscription:", error);
+      res.status(500).json({ message: error.message || "Failed to cancel subscription" });
+    }
+  });
+
+  // Admin: Reactivate subscription
+  app.post("/api/admin/reactivate-subscription", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { subscriptionId } = req.body;
+      
+      if (!subscriptionId) {
+        return res.status(400).json({ message: "Subscription ID is required" });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: false,
+      });
+
+      res.json({ success: true, subscription });
+    } catch (error: any) {
+      console.error("Error reactivating subscription:", error);
+      res.status(500).json({ message: error.message || "Failed to reactivate subscription" });
+    }
+  });
+
+  // Admin: Grant free access to user
+  app.post("/api/admin/grant-access", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { userId, accessType } = req.body;
+      
+      if (!userId || !accessType) {
+        return res.status(400).json({ message: "User ID and access type are required" });
+      }
+
+      const updates: { isPremium?: boolean; isFreeAccount?: boolean } = {};
+      if (accessType === 'premium') {
+        updates.isPremium = true;
+      } else if (accessType === 'free') {
+        updates.isFreeAccount = true;
+      }
+
+      const user = await storage.updateUser(userId, updates);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password, ...safeUser } = user;
+      res.json({ success: true, user: safeUser });
+    } catch (error: any) {
+      console.error("Error granting access:", error);
+      res.status(500).json({ message: error.message || "Failed to grant access" });
     }
   });
 
