@@ -1,0 +1,24 @@
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % git add .
+git commit -m "Initial commit"
+npx eas-cli build --platform ios
+On branch main
+nothing to commit, working tree clean
+Since EAS CLI version `12.0.0` explicitly specifying app version source is required. Please select your app version source:
+	1) With the "local" app version source and "autoIncrement" option enabled, the build number/version code is sourced from local project files and incremented automatically if possible, by editing local project files. Learn more: https://docs.expo.dev/build-reference/app-versions/#local-version-source
+	2) With the "remote" app version source and "autoIncrement" option enabled, the build number/version code is stored on EAS servers and updated every time you create a new build. Remote auto-incrementation won't edit the version in the local project files, but instead, the new version will be injected automatically during the build process. Learn more: https://docs.expo.dev/build-reference/app-versions/#remote-version-source
+Until now, this project has been using the "local" version source (which was the previous default). App version source can now be set for you automatically, or you can configure it manually by setting the "appVersionSource" value in your eas.json.
+✔ What would you like to do? › Update eas.json to use the default "remote" version source (recommended)
+✔ Updated eas.json
+Invalid UUID appId
+Request ID: 64b3581b-b32c-448f-a791-3557e2baf065
+    Error: GraphQL request failed.
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % npx eas-cli init
+✔ Project already linked (ID: your-project-id). To re-configure, remove the "extra.eas.projectId" field from your app config.
+Invalid UUID appId
+Request ID: 367a9dbd-d1c9-41e8-8f86-01cf5a6998d3
+    Error: GraphQL request failed.
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % npx eas-cli build --platform ios
+Invalid UUID appId
+Request ID: e507004e-0252-4a1d-bd9a-b46c9309ae1e
+    Error: GraphQL request failed.
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % 
