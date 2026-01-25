@@ -1,4 +1,7 @@
-{
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % npx eas-cli init
+Failed to read the app config from the project using "npx expo config" command: npx expo config --json exited with non-zero code: 1.
+Falling back to the version of "@expo/config" shipped with the EAS CLI.
+Error parsing JSON: {
   "expo": {
     "name": "Image Certifier",
     "slug": "image-certifier",
@@ -61,7 +64,18 @@
     "extra": {
       "router": {
         "origin": false
-      }
+      },
+      "eas": {
+        "projectId": "your-project-id"
     }
   }
 }
+
+├─ File: /Users/marceloferreiradearaujo/Documents/mobile/app.json
+└─ Cause: SyntaxError: JSON5: invalid end of input at 70:1
+  68 |   }
+  69 | }
+> 70 | 
+     | ^
+    Error: project:init command failed.
+marceloferreiradearaujo@Marcelos-MacBook-Air-520 mobile % 
