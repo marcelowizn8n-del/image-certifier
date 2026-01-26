@@ -138,3 +138,17 @@ export const analyzeVideoSchema = z.object({
 });
 
 export type AnalyzeVideoInput = z.infer<typeof analyzeVideoSchema>;
+
+// Anonymous usage tracking for freemium limit
+export const anonymousUsage = pgTable("anonymous_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fingerprint: text("fingerprint").notNull().unique(),
+  analysisCount: integer("analysis_count").default(0).notNull(),
+  lastAnalysisAt: timestamp("last_analysis_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AnonymousUsage = typeof anonymousUsage.$inferSelect;
+
+// Freemium constants
+export const FREE_ANALYSIS_LIMIT = 10;

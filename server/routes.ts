@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema, analyzeVideoSchema, type VideoAnalysisResult } from "@shared/schema";
+import { analyzeImageSchema, analyzeUrlSchema, updateUserSchema, analyzeVideoSchema, type VideoAnalysisResult, FREE_ANALYSIS_LIMIT } from "@shared/schema";
 import sharp from "sharp";
 import ExifParser from "exif-parser";
 import OpenAI from "openai";
@@ -11,6 +11,16 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { analyzeVideoWithGPT4V, isVideoAnalysisConfigured } from "./videoAnalysisClient";
+import crypto from "crypto";
+
+// Generate fingerprint from request for freemium tracking
+function getFingerprint(req: Request): string {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const userAgent = req.headers['user-agent'] || '';
+  const acceptLang = req.headers['accept-language'] || '';
+  const data = `${ip}-${userAgent}-${acceptLang}`;
+  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 32);
+}
 
 // Admin authentication middleware
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -518,9 +528,39 @@ export async function registerRoutes(
     }
   });
 
+  // Check freemium usage status
+  app.get("/api/usage", async (req, res) => {
+    try {
+      const fingerprint = getFingerprint(req);
+      const status = await storage.canAnalyze(fingerprint);
+      res.json({
+        ...status,
+        limit: FREE_ANALYSIS_LIMIT,
+        used: FREE_ANALYSIS_LIMIT - status.remaining,
+      });
+    } catch (error) {
+      console.error("Error checking usage:", error);
+      res.status(500).json({ message: "Failed to check usage" });
+    }
+  });
+
   // Analyze image from base64 data
   app.post("/api/analyze", async (req, res) => {
     try {
+      // Check freemium limit
+      const fingerprint = getFingerprint(req);
+      const canAnalyze = await storage.canAnalyze(fingerprint);
+      
+      if (!canAnalyze.allowed) {
+        return res.status(403).json({ 
+          message: "Limite gratuito atingido",
+          error: "FREE_LIMIT_EXCEEDED",
+          remaining: 0,
+          limit: FREE_ANALYSIS_LIMIT,
+          upgradeUrl: "/pricing"
+        });
+      }
+
       const parsed = analyzeImageSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
@@ -532,6 +572,10 @@ export async function registerRoutes(
       console.log("Starting image analysis for:", filename);
       const analysisResult = await analyzeImageAdvanced(imageData, filename);
       console.log("Analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
+      
+      // Increment usage count
+      await storage.incrementAnonymousUsage(fingerprint);
+      const updatedStatus = await storage.canAnalyze(fingerprint);
       
       // Save to storage
       const analysis = await storage.createAnalysis({
@@ -545,7 +589,13 @@ export async function registerRoutes(
       });
 
       console.log("Returning analysis:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
-      res.json(analysis);
+      res.json({
+        ...analysis,
+        usage: {
+          remaining: updatedStatus.remaining,
+          limit: FREE_ANALYSIS_LIMIT,
+        }
+      });
     } catch (error) {
       console.error("Error analyzing image:", error);
       res.status(500).json({ message: "Failed to analyze image" });
@@ -555,6 +605,20 @@ export async function registerRoutes(
   // Analyze image from URL
   app.post("/api/analyze-url", async (req, res) => {
     try {
+      // Check freemium limit
+      const fingerprint = getFingerprint(req);
+      const canAnalyzeResult = await storage.canAnalyze(fingerprint);
+      
+      if (!canAnalyzeResult.allowed) {
+        return res.status(403).json({ 
+          message: "Limite gratuito atingido",
+          error: "FREE_LIMIT_EXCEEDED",
+          remaining: 0,
+          limit: FREE_ANALYSIS_LIMIT,
+          upgradeUrl: "/pricing"
+        });
+      }
+
       const parsed = analyzeUrlSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid URL", errors: parsed.error.errors });
@@ -587,6 +651,10 @@ export async function registerRoutes(
       const analysisResult = await analyzeImageAdvanced(imageData, filename);
       console.log("URL analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
       
+      // Increment usage count
+      await storage.incrementAnonymousUsage(fingerprint);
+      const updatedStatus = await storage.canAnalyze(fingerprint);
+      
       // Save to storage
       const analysis = await storage.createAnalysis({
         filename,
@@ -599,7 +667,13 @@ export async function registerRoutes(
       });
 
       console.log("URL analysis returning:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
-      res.json(analysis);
+      res.json({
+        ...analysis,
+        usage: {
+          remaining: updatedStatus.remaining,
+          limit: FREE_ANALYSIS_LIMIT,
+        }
+      });
     } catch (error) {
       console.error("Error analyzing URL:", error);
       res.status(500).json({ message: "Failed to analyze image from URL" });

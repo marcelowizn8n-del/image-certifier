@@ -102,13 +102,25 @@ export default function Upload() {
         await applySealToPreview(data, preview);
       }
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error: any) => {
       setIsAnalyzing(false);
       setProgress(0);
-      toast.error("Analysis Failed", {
-        description: error.message || "Failed to analyze image",
-      });
+      
+      if (error.error === 'FREE_LIMIT_EXCEEDED') {
+        setError("Limite gratuito atingido! Assine um plano para continuar.");
+        toast.error("Limite Gratuito Atingido", {
+          description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
+          action: {
+            label: "Ver Planos",
+            onClick: () => window.location.href = "/pricing",
+          },
+        });
+      } else {
+        setError(error.message);
+        toast.error("Analysis Failed", {
+          description: error.message || "Failed to analyze image",
+        });
+      }
     },
   });
 
@@ -141,13 +153,25 @@ export default function Upload() {
         }
       }
     },
-    onError: (error: Error) => {
-      setError(error.message);
+    onError: (error: any) => {
       setIsAnalyzing(false);
       setProgress(0);
-      toast.error("Analysis Failed", {
-        description: error.message || "Failed to analyze image from URL",
-      });
+      
+      if (error.error === 'FREE_LIMIT_EXCEEDED') {
+        setError("Limite gratuito atingido! Assine um plano para continuar.");
+        toast.error("Limite Gratuito Atingido", {
+          description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
+          action: {
+            label: "Ver Planos",
+            onClick: () => window.location.href = "/pricing",
+          },
+        });
+      } else {
+        setError(error.message);
+        toast.error("Analysis Failed", {
+          description: error.message || "Failed to analyze image from URL",
+        });
+      }
     },
   });
 

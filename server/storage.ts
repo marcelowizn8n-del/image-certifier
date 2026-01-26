@@ -1,4 +1,4 @@
-import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser, type VideoAnalysis, type InsertVideoAnalysis } from "@shared/schema";
+import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser, type VideoAnalysis, type InsertVideoAnalysis, type AnonymousUsage, FREE_ANALYSIS_LIMIT } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -14,17 +14,22 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: UpdateUser): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  getAnonymousUsage(fingerprint: string): Promise<AnonymousUsage | undefined>;
+  incrementAnonymousUsage(fingerprint: string): Promise<AnonymousUsage>;
+  canAnalyze(fingerprint: string): Promise<{ allowed: boolean; remaining: number; total: number }>;
 }
 
 export class MemStorage implements IStorage {
   private analyses: Map<string, Analysis>;
   private videoAnalyses: Map<string, VideoAnalysis>;
   private users: Map<string, User>;
+  private anonymousUsage: Map<string, AnonymousUsage>;
 
   constructor() {
     this.analyses = new Map();
     this.videoAnalyses = new Map();
     this.users = new Map();
+    this.anonymousUsage = new Map();
   }
 
   async getAnalyses(): Promise<Analysis[]> {
@@ -114,6 +119,44 @@ export class MemStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     return this.users.delete(id);
+  }
+
+  async getAnonymousUsage(fingerprint: string): Promise<AnonymousUsage | undefined> {
+    return this.anonymousUsage.get(fingerprint);
+  }
+
+  async incrementAnonymousUsage(fingerprint: string): Promise<AnonymousUsage> {
+    const existing = this.anonymousUsage.get(fingerprint);
+    if (existing) {
+      const updated: AnonymousUsage = {
+        ...existing,
+        analysisCount: existing.analysisCount + 1,
+        lastAnalysisAt: new Date(),
+      };
+      this.anonymousUsage.set(fingerprint, updated);
+      return updated;
+    }
+
+    const newUsage: AnonymousUsage = {
+      id: randomUUID(),
+      fingerprint,
+      analysisCount: 1,
+      lastAnalysisAt: new Date(),
+      createdAt: new Date(),
+    };
+    this.anonymousUsage.set(fingerprint, newUsage);
+    return newUsage;
+  }
+
+  async canAnalyze(fingerprint: string): Promise<{ allowed: boolean; remaining: number; total: number }> {
+    const usage = await this.getAnonymousUsage(fingerprint);
+    const count = usage?.analysisCount || 0;
+    const remaining = Math.max(0, FREE_ANALYSIS_LIMIT - count);
+    return {
+      allowed: count < FREE_ANALYSIS_LIMIT,
+      remaining,
+      total: FREE_ANALYSIS_LIMIT,
+    };
   }
 }
 

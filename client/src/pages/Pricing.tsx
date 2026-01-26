@@ -137,11 +137,15 @@ export default function Pricing() {
               <ul className="text-sm text-muted-foreground space-y-2 mb-4">
                 <li className="flex items-center justify-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  5 análises por mês
+                  10 análises gratuitas
                 </li>
                 <li className="flex items-center justify-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  Detecção básica
+                  Detecção com IA avançada
+                </li>
+                <li className="flex items-center justify-center gap-2">
+                  <Check className="h-4 w-4 text-green-500" />
+                  Sem necessidade de cadastro
                 </li>
               </ul>
               <Button variant="outline" className="w-full max-w-xs" disabled>

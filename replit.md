@@ -10,6 +10,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Freemium & Stripe Monetization (Jan 2026)
+- Freemium model: 10 free analyses per user (tracked by IP/browser fingerprint)
+- Stripe integration with 3 paid plans:
+  - Basico: R$19,90/mês (100 análises)
+  - Premium: R$49,90/mês (ilimitado)
+  - Empresarial: R$199,90/mês (multi-usuários)
+- Pricing page at `/pricing` with checkout integration
+- Endpoints:
+  - `GET /api/usage` - Check remaining free analyses
+  - `POST /api/stripe/checkout` - Create checkout session
+  - `GET /api/stripe/products-with-prices` - List products
+- Frontend shows limit error with upgrade CTA when free limit exceeded
+
 ### Mobile App (React Native / Expo) - Jan 2026
 - Created React Native mobile app in `/mobile` directory
 - Using Expo SDK 51 with TypeScript and Expo Router
