@@ -46,14 +46,7 @@
     "plugins": [
       "expo-router",
       "expo-camera",
-      "expo-image-picker",
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "merchant.app.imgcertifier",
-          "enableGooglePay": true
-        }
-      ]
+      "expo-image-picker"
     ],
     "experiments": {
       "typedRoutes": true
