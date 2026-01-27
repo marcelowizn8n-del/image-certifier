@@ -16,7 +16,6 @@
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/native": "^6.1.9",
-    "@stripe/stripe-react-native": "^0.37.0",
     "expo": "~51.0.0",
     "expo-camera": "~15.0.0",
     "expo-constants": "~16.0.0",
