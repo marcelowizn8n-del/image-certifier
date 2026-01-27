@@ -31,6 +31,7 @@ import { Footer } from "@/components/Footer";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import heic2any from "heic2any";
 import type { Analysis } from "@shared/schema";
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
@@ -221,7 +222,7 @@ export default function Upload() {
     return null;
   };
 
-  const handleFileSelect = useCallback((selectedFile: File) => {
+  const handleFileSelect = useCallback(async (selectedFile: File) => {
     const validationError = validateFile(selectedFile);
     if (validationError) {
       setError(validationError);
@@ -231,15 +232,45 @@ export default function Upload() {
       return;
     }
 
-    setFile(selectedFile);
     setError(null);
     setResult(null);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(selectedFile);
+    const fileExtension = selectedFile.name.toLowerCase();
+    const isHeic = fileExtension.endsWith('.heic') || fileExtension.endsWith('.heif') || 
+                   selectedFile.type === 'image/heic' || selectedFile.type === 'image/heif';
+
+    if (isHeic) {
+      try {
+        toast.info("Converting HEIC...", { description: "Please wait while we convert your image" });
+        const convertedBlob = await heic2any({
+          blob: selectedFile,
+          toType: "image/jpeg",
+          quality: 0.92
+        });
+        const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        const convertedFile = new File([blob], selectedFile.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), {
+          type: 'image/jpeg'
+        });
+        setFile(convertedFile);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(convertedFile);
+        toast.success("HEIC converted", { description: "Image ready for analysis" });
+      } catch (err) {
+        console.error("HEIC conversion error:", err);
+        setError("Failed to convert HEIC image. Please try a different format.");
+        toast.error("Conversion Failed", { description: "Could not convert HEIC image" });
+      }
+    } else {
+      setFile(selectedFile);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
   }, []);
 
   const handleDrop = useCallback(
