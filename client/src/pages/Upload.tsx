@@ -649,8 +649,9 @@ export default function Upload() {
                           alt="URL Preview"
                           className="w-full max-h-80 object-contain bg-muted/20"
                           referrerPolicy="no-referrer"
-                          onError={() => {
-                            if (!isYouTubeUrl) {
+                          onError={(e) => {
+                            const src = (e.target as HTMLImageElement).src;
+                            if (!src.includes('img.youtube.com')) {
                               setError("Failed to load image from URL");
                             }
                           }}
