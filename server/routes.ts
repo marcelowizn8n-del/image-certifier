@@ -714,6 +714,12 @@ export async function registerRoutes(
             });
           }
         }
+        if (isYouTubeThumbnail) {
+          return res.status(400).json({ 
+            message: "Não foi possível obter a thumbnail do vídeo do YouTube. O vídeo pode não existir, ter sido removido, ou estar privado.",
+            error: "YOUTUBE_THUMBNAIL_NOT_FOUND"
+          });
+        }
         return res.status(400).json({ message: "Failed to fetch image from URL" });
       }
 

@@ -51,6 +51,31 @@ export default function Upload() {
   const [imageUrl, setImageUrl] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   
+  // YouTube URL detection and thumbnail extraction
+  const extractYouTubeVideoId = (url: string): string | null => {
+    const patterns = [
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+      /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) return match[1];
+    }
+    return null;
+  };
+  
+  const getPreviewUrl = (url: string): string => {
+    const videoId = extractYouTubeVideoId(url);
+    if (videoId) {
+      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    }
+    return url;
+  };
+  
+  const isYouTubeUrl = extractYouTubeVideoId(imageUrl) !== null;
+  
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [needsUserGesture, setNeedsUserGesture] = useState(false);
@@ -570,9 +595,17 @@ export default function Upload() {
                       />
                     </div>
                     {imageUrl && (
-                      <div className="rounded-xl overflow-hidden border border-border">
+                      <div className="rounded-xl overflow-hidden border border-border relative">
+                        {isYouTubeUrl && (
+                          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 z-10">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                            YouTube Thumbnail
+                          </div>
+                        )}
                         <img
-                          src={imageUrl}
+                          src={getPreviewUrl(imageUrl)}
                           alt="URL Preview"
                           className="w-full max-h-80 object-contain bg-muted/20"
                           onError={() => setError("Failed to load image from URL")}
