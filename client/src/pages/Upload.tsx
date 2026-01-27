@@ -166,6 +166,12 @@ export default function Upload() {
             onClick: () => window.location.href = "/pricing",
           },
         });
+      } else if (error.error === 'INSTAGRAM_NOT_SUPPORTED') {
+        setError("Links do Instagram não são suportados. Salve a imagem e faça upload pelo arquivo.");
+        toast.error("Instagram não suportado", {
+          description: "Salve a imagem do Instagram e use a opção 'Arquivo' para upload.",
+          duration: 8000,
+        });
       } else {
         setError(error.message);
         toast.error("Analysis Failed", {

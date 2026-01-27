@@ -13,6 +13,38 @@ import { z } from "zod";
 import { analyzeVideoWithGPT4V, isVideoAnalysisConfigured } from "./videoAnalysisClient";
 import crypto from "crypto";
 
+// YouTube URL patterns and thumbnail extraction
+const YOUTUBE_PATTERNS = [
+  /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+  /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+  /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+  /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+];
+
+const INSTAGRAM_PATTERNS = [
+  /(?:https?:\/\/)?(?:www\.)?instagram\.com\/p\/([a-zA-Z0-9_-]+)/,
+  /(?:https?:\/\/)?(?:www\.)?instagram\.com\/reel\/([a-zA-Z0-9_-]+)/,
+];
+
+function extractYouTubeVideoId(url: string): string | null {
+  for (const pattern of YOUTUBE_PATTERNS) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+function isInstagramUrl(url: string): boolean {
+  return INSTAGRAM_PATTERNS.some(pattern => pattern.test(url));
+}
+
+function getYouTubeThumbnailUrl(videoId: string): string {
+  // Try maxresdefault first, fallback options available
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
 // Generate fingerprint from request for freemium tracking
 function getFingerprint(req: Request): string {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -624,18 +656,70 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid URL", errors: parsed.error.errors });
       }
 
-      const { url } = parsed.data;
+      let { url } = parsed.data;
       console.log("Analyzing image from URL:", url);
+      
+      // Check for Instagram URLs - provide helpful message
+      if (isInstagramUrl(url)) {
+        return res.status(400).json({ 
+          message: "Links do Instagram não são suportados diretamente. Para analisar uma imagem do Instagram:\n\n1. Abra a imagem no Instagram\n2. Toque nos três pontos (...)\n3. Selecione 'Salvar' ou faça uma captura de tela\n4. Use a opção 'Arquivo' para fazer upload da imagem salva",
+          error: "INSTAGRAM_NOT_SUPPORTED",
+          suggestion: "save_image"
+        });
+      }
+      
+      // Check for YouTube URLs - extract thumbnail automatically
+      const youtubeVideoId = extractYouTubeVideoId(url);
+      let isYouTubeThumbnail = false;
+      if (youtubeVideoId) {
+        console.log("YouTube video detected, extracting thumbnail for video:", youtubeVideoId);
+        url = getYouTubeThumbnailUrl(youtubeVideoId);
+        isYouTubeThumbnail = true;
+      }
       
       // Fetch image from URL
       const response = await fetch(url);
       if (!response.ok) {
+        // If YouTube maxresdefault fails, try hqdefault
+        if (isYouTubeThumbnail && youtubeVideoId) {
+          const fallbackUrl = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+          const fallbackResponse = await fetch(fallbackUrl);
+          if (fallbackResponse.ok) {
+            const contentType = fallbackResponse.headers.get("content-type");
+            const arrayBuffer = await fallbackResponse.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString("base64");
+            const imageData = `data:${contentType};base64,${base64}`;
+            const filename = `youtube-thumbnail-${youtubeVideoId}.jpg`;
+            
+            console.log("Using YouTube hqdefault thumbnail");
+            const analysisResult = await analyzeImageAdvanced(imageData, filename);
+            
+            await storage.incrementAnonymousUsage(fingerprint);
+            const updatedStatus = await storage.canAnalyze(fingerprint);
+            
+            const analysis = await storage.createAnalysis({
+              filename,
+              result: analysisResult.result,
+              confidence: analysisResult.confidence,
+              artifacts: analysisResult.artifacts,
+              metadata: analysisResult.metadata,
+              debugScores: analysisResult.debugScores,
+              imageData: imageData.length < 500000 ? imageData : undefined,
+            });
+            
+            return res.json({
+              ...analysis,
+              youtubeVideoId,
+              usage: { remaining: updatedStatus.remaining, limit: FREE_ANALYSIS_LIMIT }
+            });
+          }
+        }
         return res.status(400).json({ message: "Failed to fetch image from URL" });
       }
 
       const contentType = response.headers.get("content-type");
       if (!contentType?.startsWith("image/")) {
-        return res.status(400).json({ message: "URL does not point to an image" });
+        return res.status(400).json({ message: "URL does not point to an image. Please provide a direct image URL (ending in .jpg, .png, etc.)" });
       }
 
       const arrayBuffer = await response.arrayBuffer();
