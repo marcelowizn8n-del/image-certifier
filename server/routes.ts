@@ -1287,5 +1287,36 @@ export async function registerRoutes(
     }
   });
 
+  // Proxy endpoint to fetch YouTube thumbnails (bypasses CORS)
+  app.get("/api/youtube-thumbnail/:videoId", async (req: Request, res: Response) => {
+    try {
+      const { videoId } = req.params;
+      if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+        return res.status(400).json({ message: "Invalid video ID" });
+      }
+
+      // Try maxresdefault first, fallback to hqdefault
+      const urls = [
+        `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      ];
+
+      for (const url of urls) {
+        const response = await fetch(url);
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          res.set('Content-Type', 'image/jpeg');
+          res.set('Cache-Control', 'public, max-age=86400');
+          return res.send(Buffer.from(buffer));
+        }
+      }
+
+      res.status(404).json({ message: "Thumbnail not found" });
+    } catch (error: any) {
+      console.error("Error fetching YouTube thumbnail:", error);
+      res.status(500).json({ message: "Failed to fetch thumbnail" });
+    }
+  });
+
   return httpServer;
 }

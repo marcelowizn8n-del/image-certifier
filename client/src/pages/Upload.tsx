@@ -71,7 +71,8 @@ export default function Upload() {
   const getPreviewUrl = (url: string): string => {
     const videoId = extractYouTubeVideoId(url);
     if (videoId) {
-      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      // Use our proxy to avoid CORS issues
+      return `/api/youtube-thumbnail/${videoId}`;
     }
     return url;
   };
