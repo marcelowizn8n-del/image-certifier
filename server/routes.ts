@@ -368,19 +368,33 @@ async function analyzeWithAI(imageData: string): Promise<{
       messages: [
         {
           role: "system",
-          content: `You are an expert image forensics analyst. Analyze images for AI generation signs:
-- Unnatural skin textures/smoothness
-- Inconsistent lighting/shadows
-- Malformed details (hands, fingers, text)
-- Repetitive patterns or artifacts
-- Unnatural backgrounds/perspective
-- Unusual color gradients/noise
+          content: `You are an expert AI image forensics analyst specializing in detecting BOTH fully AI-generated images AND partially AI-modified/edited images.
 
-For real photos look for:
-- Natural noise/grain patterns
-- Consistent lighting/perspective
-- Natural imperfections
-- Camera artifacts (lens distortion, blur)
+CRITICAL: Pay special attention to AI MODIFICATIONS (partial edits):
+- Objects that look "pasted" or don't match scene lighting
+- Text, numbers, or logos that appear artificially added
+- Face swaps or facial modifications
+- Background replacements or extensions
+- Object additions/removals (inpainting)
+- Age modifications, beauty filters
+- Elements with different noise/grain patterns than the rest
+- Shadows that don't match added objects
+- Color/lighting inconsistencies between original and added elements
+
+For FULLY AI-GENERATED images look for:
+- Unnatural skin textures/smoothness
+- Malformed details (hands, fingers, text, teeth)
+- Repetitive patterns or artifacts
+- Unnatural backgrounds/impossible perspectives
+- Unusual color gradients/noise patterns
+
+For AUTHENTIC ORIGINAL photos look for:
+- Consistent noise/grain across entire image
+- Uniform lighting and shadows
+- Natural imperfections throughout
+- Camera artifacts (lens distortion, motion blur)
+
+IMPORTANT: If ANY part of the image appears AI-modified (even just text, numbers, or small objects), classify as "ai_modified".
 
 You MUST respond with valid JSON:
 {"classification":"original"|"ai_generated"|"ai_modified","confidence":0-100,"reasoning":"explanation","artifacts":["list"]}`
@@ -390,7 +404,7 @@ You MUST respond with valid JSON:
           content: [
             {
               type: "text",
-              text: "Analyze this image. Determine if it's an original photograph, AI-generated, or AI-modified. Return JSON only."
+              text: "Analyze this image carefully. Look for ANY signs of AI modification, including added text, numbers, objects, face edits, or background changes. Determine if it's: 1) an ORIGINAL unedited photograph, 2) fully AI-GENERATED, or 3) AI-MODIFIED (real photo with AI edits). Be suspicious of elements that don't match the rest of the image. Return JSON only."
             },
             {
               type: "image_url",
