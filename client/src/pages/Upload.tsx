@@ -648,7 +648,13 @@ export default function Upload() {
                           src={getPreviewUrl(imageUrl)}
                           alt="URL Preview"
                           className="w-full max-h-80 object-contain bg-muted/20"
-                          onError={() => setError("Failed to load image from URL")}
+                          referrerPolicy="no-referrer"
+                          onError={() => {
+                            if (!isYouTubeUrl) {
+                              setError("Failed to load image from URL");
+                            }
+                          }}
+                          onLoad={() => setError(null)}
                           data-testid="img-url-preview"
                         />
                       </div>
