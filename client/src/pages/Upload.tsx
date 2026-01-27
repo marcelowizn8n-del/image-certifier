@@ -35,6 +35,7 @@ import type { Analysis } from "@shared/schema";
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
 export default function Upload() {
   const queryClient = useQueryClient();
@@ -207,8 +208,12 @@ export default function Upload() {
   });
 
   const validateFile = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return `Invalid file type. Allowed types: ${ALLOWED_TYPES.join(", ")}`;
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    const isValidType = ALLOWED_TYPES.includes(file.type);
+    const isValidExtension = ALLOWED_EXTENSIONS.includes(fileExtension);
+    
+    if (!isValidType && !isValidExtension) {
+      return `Invalid file type. Allowed: JPEG, PNG, WebP, HEIC`;
     }
     if (file.size > MAX_FILE_SIZE) {
       return `File too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
@@ -547,7 +552,7 @@ export default function Upload() {
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept={ALLOWED_TYPES.join(",")}
+                        accept={[...ALLOWED_TYPES, ...ALLOWED_EXTENSIONS].join(",")}
                         onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
                         className="hidden"
                         data-testid="input-file"
