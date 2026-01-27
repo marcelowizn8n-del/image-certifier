@@ -77,6 +77,8 @@ export default function Upload() {
   };
   
   const isYouTubeUrl = extractYouTubeVideoId(imageUrl) !== null;
+  const [youtubeImageLoaded, setYoutubeImageLoaded] = useState(false);
+  const [youtubeImageError, setYoutubeImageError] = useState(false);
   
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -628,6 +630,8 @@ export default function Upload() {
                         onChange={(e) => {
                           setImageUrl(e.target.value);
                           setError(null);
+                          setYoutubeImageError(false);
+                          setYoutubeImageLoaded(false);
                         }}
                         className="flex-1"
                         data-testid="input-url"
@@ -643,21 +647,38 @@ export default function Upload() {
                             YouTube Thumbnail
                           </div>
                         )}
-                        <img
-                          key={getPreviewUrl(imageUrl)}
-                          src={getPreviewUrl(imageUrl)}
-                          alt="URL Preview"
-                          className="w-full max-h-80 object-contain bg-muted/20"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            const src = (e.target as HTMLImageElement).src;
-                            if (!src.includes('img.youtube.com')) {
-                              setError("Failed to load image from URL");
-                            }
-                          }}
-                          onLoad={() => setError(null)}
-                          data-testid="img-url-preview"
-                        />
+                        {isYouTubeUrl && youtubeImageError ? (
+                          <div className="w-full h-48 bg-muted/20 flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
+                              <svg className="w-12 h-12 mx-auto mb-2 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                              </svg>
+                              <p className="text-sm">YouTube video detected</p>
+                              <p className="text-xs">Click "Analyze Image" to analyze the thumbnail</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            key={getPreviewUrl(imageUrl) + "_v2"}
+                            src={getPreviewUrl(imageUrl)}
+                            alt="URL Preview"
+                            className="w-full max-h-80 object-contain bg-muted/20"
+                            referrerPolicy="no-referrer"
+                            onError={() => {
+                              if (isYouTubeUrl) {
+                                setYoutubeImageError(true);
+                              } else {
+                                setError("Failed to load image from URL");
+                              }
+                            }}
+                            onLoad={() => {
+                              setError(null);
+                              setYoutubeImageLoaded(true);
+                              setYoutubeImageError(false);
+                            }}
+                            data-testid="img-url-preview"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
