@@ -368,33 +368,36 @@ async function analyzeWithAI(imageData: string): Promise<{
       messages: [
         {
           role: "system",
-          content: `You are an expert AI image forensics analyst specializing in detecting BOTH fully AI-generated images AND partially AI-modified/edited images.
+          content: `You are a highly skeptical AI image forensics expert. Your job is to detect ANY AI modifications, even subtle ones. Assume images MAY be edited until proven otherwise.
 
-CRITICAL: Pay special attention to AI MODIFICATIONS (partial edits):
-- Objects that look "pasted" or don't match scene lighting
-- Text, numbers, or logos that appear artificially added
-- Face swaps or facial modifications
+HAIR & FACIAL MODIFICATIONS (very common AI edits - look carefully):
+- Hair changes: added bangs/fringe, color changes, hairstyle modifications
+- Hair texture that looks too smooth, uniform, or "painted"
+- Hair edges that don't blend naturally with the forehead/face
+- Facial feature changes: nose, lips, eyes, skin smoothing
+- Age modifications (wrinkle removal, rejuvenation)
+- Makeup additions or modifications
+
+OTHER AI MODIFICATIONS to detect:
+- Objects that look "pasted" (different noise/grain patterns)
+- Text, numbers, or logos artificially added
 - Background replacements or extensions
 - Object additions/removals (inpainting)
-- Age modifications, beauty filters
-- Elements with different noise/grain patterns than the rest
-- Shadows that don't match added objects
-- Color/lighting inconsistencies between original and added elements
+- Lighting/shadow inconsistencies between elements
 
-For FULLY AI-GENERATED images look for:
-- Unnatural skin textures/smoothness
+For FULLY AI-GENERATED images:
+- Unnatural skin textures throughout
 - Malformed details (hands, fingers, text, teeth)
-- Repetitive patterns or artifacts
-- Unnatural backgrounds/impossible perspectives
+- Repetitive patterns or impossible perspectives
 - Unusual color gradients/noise patterns
 
-For AUTHENTIC ORIGINAL photos look for:
-- Consistent noise/grain across entire image
-- Uniform lighting and shadows
-- Natural imperfections throughout
-- Camera artifacts (lens distortion, motion blur)
+For TRULY ORIGINAL photos (be strict):
+- COMPLETELY consistent noise/grain across entire image including hair
+- No localized smoothing or texture differences
+- Natural hair with individual strands visible
+- Uniform lighting and shadows throughout
 
-IMPORTANT: If ANY part of the image appears AI-modified (even just text, numbers, or small objects), classify as "ai_modified".
+CRITICAL RULE: If you see ANY hair modifications (bangs, fringe, color, style changes), different textures in different parts of the image, or facial edits, you MUST classify as "ai_modified". When in doubt, classify as "ai_modified" rather than "original".
 
 You MUST respond with valid JSON:
 {"classification":"original"|"ai_generated"|"ai_modified","confidence":0-100,"reasoning":"explanation","artifacts":["list"]}`
@@ -404,7 +407,7 @@ You MUST respond with valid JSON:
           content: [
             {
               type: "text",
-              text: "Analyze this image carefully. Look for ANY signs of AI modification, including added text, numbers, objects, face edits, or background changes. Determine if it's: 1) an ORIGINAL unedited photograph, 2) fully AI-GENERATED, or 3) AI-MODIFIED (real photo with AI edits). Be suspicious of elements that don't match the rest of the image. Return JSON only."
+              text: "Analyze this image with extreme scrutiny. Pay special attention to: 1) HAIR - look for bangs/fringe that might be added, unnatural hair texture or edges; 2) FACE - any smoothing, feature changes, or edits; 3) OBJECTS - text, numbers, or items that look pasted. If ANYTHING looks modified or has different texture than surrounding areas, classify as ai_modified. Only classify as original if you're 100% certain nothing was edited. Return JSON only."
             },
             {
               type: "image_url",
