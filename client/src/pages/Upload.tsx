@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import type { Analysis } from "@shared/schema";
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 export default function Upload() {
   const queryClient = useQueryClient();
@@ -510,7 +510,7 @@ export default function Upload() {
                 Upload Image
               </CardTitle>
               <CardDescription>
-                Supported formats: JPEG, PNG, WebP (max 16MB)
+                Supported formats: JPEG, PNG, WebP, HEIC (max 16MB)
               </CardDescription>
             </CardHeader>
             <CardContent>
