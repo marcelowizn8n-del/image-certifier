@@ -589,7 +589,10 @@ export default function Upload() {
                         type="url"
                         placeholder="https://example.com/image.jpg"
                         value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
+                        onChange={(e) => {
+                          setImageUrl(e.target.value);
+                          setError(null);
+                        }}
                         className="flex-1"
                         data-testid="input-url"
                       />
@@ -605,6 +608,7 @@ export default function Upload() {
                           </div>
                         )}
                         <img
+                          key={getPreviewUrl(imageUrl)}
                           src={getPreviewUrl(imageUrl)}
                           alt="URL Preview"
                           className="w-full max-h-80 object-contain bg-muted/20"
