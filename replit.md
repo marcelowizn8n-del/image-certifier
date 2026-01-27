@@ -10,6 +10,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### YouTube & Instagram URL Support (Jan 2026)
+- YouTube URLs automatically extract video thumbnail for analysis
+- Supports: youtube.com/watch, youtu.be, youtube.com/shorts, youtube.com/embed
+- Instagram URLs show helpful guidance to save image and upload via File
+- Fallback from maxresdefault to hqdefault for older videos
+
 ### Freemium & Stripe Monetization (Jan 2026)
 - Freemium model: 10 free analyses per user (tracked by IP/browser fingerprint)
 - Stripe integration with 3 paid plans:
