@@ -24,8 +24,7 @@ export function Header() {
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2">
-          <img src={logoPath} alt="Image Certifier" className="h-8 w-8" data-testid="img-logo" />
-          <span className="font-semibold text-lg hidden sm:inline">Image Certifier</span>
+          <img src={logoPath} alt="Image Certifier" className="h-8 w-auto" data-testid="img-logo" />
         </Link>
 
         <nav className="flex items-center gap-1">
