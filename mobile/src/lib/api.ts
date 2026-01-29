@@ -32,13 +32,16 @@ export interface AnalysisResult {
   createdAt?: string;
 }
 
-export const analyzeImage = async (imageBase64: string): Promise<AnalysisResult> => {
+export const analyzeImage = async (imageBase64: string, filename?: string): Promise<AnalysisResult> => {
   const response = await fetch(`${API_BASE_URL}/api/analyze`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ image: imageBase64 }),
+    body: JSON.stringify({ 
+      imageData: imageBase64, 
+      filename: filename || 'image.jpg' 
+    }),
   });
 
   if (!response.ok) {
