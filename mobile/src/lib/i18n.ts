@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
+import { NativeModules, Platform } from 'react-native';
 
 const resources = {
   pt: {
@@ -335,10 +335,21 @@ const resources = {
   },
 };
 
-const getDeviceLanguage = () => {
-  const locale = Localization.locale;
-  const lang = locale.split('-')[0];
-  return ['pt', 'en', 'es', 'fr', 'de', 'zh'].includes(lang) ? lang : 'en';
+const getDeviceLanguage = (): string => {
+  try {
+    let locale = 'en';
+    if (Platform.OS === 'ios') {
+      locale = NativeModules.SettingsManager?.settings?.AppleLocale ||
+               NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] ||
+               'en';
+    } else {
+      locale = NativeModules.I18nManager?.localeIdentifier || 'en';
+    }
+    const lang = locale.split(/[-_]/)[0];
+    return ['pt', 'en', 'es', 'fr', 'de', 'zh'].includes(lang) ? lang : 'en';
+  } catch {
+    return 'en';
+  }
 };
 
 i18n.use(initReactI18next).init({
