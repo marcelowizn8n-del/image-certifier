@@ -9,7 +9,7 @@ export default function Privacy() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
+
       <main className="flex-1 container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardHeader>
@@ -19,10 +19,10 @@ export default function Privacy() {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-muted-foreground">{t('privacy.intro')}</p>
-            
+
             <section>
               <h2 className="text-lg font-semibold mb-2">{t('privacy.collection')}</h2>
-              <p className="text-muted-foreground">{t('privacy.collectionText')}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.collectionText')}</p>
             </section>
 
             <section>

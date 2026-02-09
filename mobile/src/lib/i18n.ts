@@ -5,11 +5,11 @@ import { NativeModules, Platform } from 'react-native';
 const resources = {
   pt: {
     translation: {
-      app: { name: 'Image Certifier', tagline: 'Verificação de Autenticidade de Imagens' },
+      app: { name: 'Image Certifier', tagline: 'Verificação de Autenticidade Digital' },
       tabs: { upload: 'Analisar', history: 'Histórico', settings: 'Config' },
       upload: {
-        title: 'Análise de Imagem',
-        subtitle: 'Envie uma imagem para verificar autenticidade',
+        title: 'Análise de Autenticidade',
+        subtitle: 'Verifique a integridade digital de mídias',
         selectImage: 'Selecionar Imagem',
         takePhoto: 'Tirar Foto',
         fromUrl: 'URL da Imagem',
@@ -19,11 +19,11 @@ const resources = {
         newAnalysis: 'Nova Análise',
       },
       result: {
-        certifiedImage: 'Imagem Certificada',
-        original: 'Original',
-        ai_generated: 'Gerada por IA',
-        ai_modified: 'Modificada por IA',
-        uncertain: 'Incerto',
+        certifiedImage: 'Certificado Digital',
+        original: 'Verificado / Autêntico',
+        ai_generated: 'Conteúdo Sintético',
+        ai_modified: 'Modificado por IA',
+        uncertain: 'Análise Inconclusiva',
         confidence: 'Confiança',
         artifacts: 'Artefatos Detectados',
         metadata: 'Metadados',
@@ -60,11 +60,11 @@ const resources = {
   },
   en: {
     translation: {
-      app: { name: 'Image Certifier', tagline: 'Image Authenticity Verification' },
+      app: { name: 'Image Certifier', tagline: 'Digital Authenticity Verification' },
       tabs: { upload: 'Analyze', history: 'History', settings: 'Settings' },
       upload: {
-        title: 'Image Analysis',
-        subtitle: 'Upload an image to verify authenticity',
+        title: 'Authenticity Analysis',
+        subtitle: 'Verify digital integrity of media',
         selectImage: 'Select Image',
         takePhoto: 'Take Photo',
         fromUrl: 'Image URL',
@@ -74,11 +74,11 @@ const resources = {
         newAnalysis: 'New Analysis',
       },
       result: {
-        certifiedImage: 'Certified Image',
-        original: 'Original',
-        ai_generated: 'AI Generated',
+        certifiedImage: 'Digital Certificate',
+        original: 'Verified / Authentic',
+        ai_generated: 'Synthetic Content',
         ai_modified: 'AI Modified',
-        uncertain: 'Uncertain',
+        uncertain: 'Inconclusive',
         confidence: 'Confidence',
         artifacts: 'Detected Artifacts',
         metadata: 'Metadata',
@@ -340,8 +340,8 @@ const getDeviceLanguage = (): string => {
     let locale = 'en';
     if (Platform.OS === 'ios') {
       locale = NativeModules.SettingsManager?.settings?.AppleLocale ||
-               NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] ||
-               'en';
+        NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] ||
+        'en';
     } else {
       locale = NativeModules.I18nManager?.localeIdentifier || 'en';
     }

@@ -20,9 +20,9 @@
       "bundleIdentifier": "app.imgcertifier.mobile",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Image Certifier needs camera access to capture images for AI analysis",
-        "NSPhotoLibraryUsageDescription": "Image Certifier needs photo library access to select images for AI analysis",
-        "NSPhotoLibraryAddUsageDescription": "Image Certifier needs access to save certified images to your photo library"
+        "NSCameraUsageDescription": "Image Certifier needs camera access to capture images for digital authenticity analysis.",
+        "NSPhotoLibraryUsageDescription": "Image Certifier needs photo library access to select images for digital authenticity analysis.",
+        "NSPhotoLibraryAddUsageDescription": "Image Certifier needs access to save verified images to your photo library."
       }
     },
     "android": {

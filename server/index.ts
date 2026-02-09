@@ -15,6 +15,16 @@ declare module "http" {
   }
 }
 
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: {
+      id: string; // or number depending on schema, storage says getUser(id: string)
+      email: string;
+      isPremium: boolean;
+    };
+  }
+}
+
 // Initialize Stripe schema and sync data
 async function initStripe() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -25,7 +35,7 @@ async function initStripe() {
 
   try {
     console.log('Initializing Stripe schema...');
-    await runMigrations({ databaseUrl, schema: 'stripe' });
+    await runMigrations({ databaseUrl, schema: 'stripe' } as any);
     console.log('Stripe schema ready');
 
     const stripeSync = await getStripeSync();

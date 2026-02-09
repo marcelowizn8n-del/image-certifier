@@ -1,4 +1,12 @@
-import { type Analysis, type InsertAnalysis, type User, type InsertUser, type UpdateUser, type VideoAnalysis, type InsertVideoAnalysis, type AnonymousUsage, FREE_ANALYSIS_LIMIT } from "@shared/schema";
+import {
+  type Analysis, type InsertAnalysis, type AnalysisResult,
+  type User, type InsertUser, type UpdateUser,
+  type VideoAnalysis, type InsertVideoAnalysis, type VideoAnalysisResult,
+  type AnonymousUsage, FREE_ANALYSIS_LIMIT,
+  users, analyses, videoAnalyses, anonymousUsage
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -19,132 +27,95 @@ export interface IStorage {
   canAnalyze(fingerprint: string): Promise<{ allowed: boolean; remaining: number; total: number }>;
 }
 
-export class MemStorage implements IStorage {
-  private analyses: Map<string, Analysis>;
-  private videoAnalyses: Map<string, VideoAnalysis>;
-  private users: Map<string, User>;
-  private anonymousUsage: Map<string, AnonymousUsage>;
-
-  constructor() {
-    this.analyses = new Map();
-    this.videoAnalyses = new Map();
-    this.users = new Map();
-    this.anonymousUsage = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getAnalyses(): Promise<Analysis[]> {
-    return Array.from(this.analyses.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db.select().from(analyses).orderBy(desc(analyses.createdAt));
   }
 
   async getAnalysis(id: string): Promise<Analysis | undefined> {
-    return this.analyses.get(id);
+    const [analysis] = await db.select().from(analyses).where(eq(analyses.id, id));
+    return analysis;
   }
 
   async createAnalysis(insertAnalysis: InsertAnalysis): Promise<Analysis> {
-    const id = randomUUID();
-    const analysis: Analysis = {
+    const [analysis] = await db.insert(analyses).values({
       ...insertAnalysis,
-      id,
-      createdAt: new Date(),
-    };
-    this.analyses.set(id, analysis);
-    return analysis;
+      result: insertAnalysis.result as AnalysisResult,
+    }).returning();
+    return analysis as Analysis;
   }
 
   async getVideoAnalyses(): Promise<VideoAnalysis[]> {
-    return Array.from(this.videoAnalyses.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db.select().from(videoAnalyses).orderBy(desc(videoAnalyses.createdAt));
   }
 
   async getVideoAnalysis(id: string): Promise<VideoAnalysis | undefined> {
-    return this.videoAnalyses.get(id);
+    const [analysis] = await db.select().from(videoAnalyses).where(eq(videoAnalyses.id, id));
+    return analysis as VideoAnalysis | undefined;
   }
 
   async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
-    const id = randomUUID();
-    const analysis: VideoAnalysis = {
+    const [analysis] = await db.insert(videoAnalyses).values({
       ...insertAnalysis,
-      id,
-      createdAt: new Date(),
-    };
-    this.videoAnalyses.set(id, analysis);
-    return analysis;
+      result: insertAnalysis.result as VideoAnalysisResult,
+    }).returning();
+    return analysis as VideoAnalysis;
   }
 
   async getUsers(): Promise<User[]> {
-    return Array.from(this.users.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.email === email);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = {
-      id,
-      username: insertUser.username,
-      email: insertUser.email,
-      password: insertUser.password,
-      role: "user",
-      isPremium: false,
-      isFreeAccount: false,
-      analysisCount: 0,
-      createdAt: new Date(),
-    };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async updateUser(id: string, updates: UpdateUser): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser: User = {
-      ...user,
-      ...updates,
-    };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return user;
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    return this.users.delete(id);
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async getAnonymousUsage(fingerprint: string): Promise<AnonymousUsage | undefined> {
-    return this.anonymousUsage.get(fingerprint);
+    const [usage] = await db.select().from(anonymousUsage).where(eq(anonymousUsage.fingerprint, fingerprint));
+    return usage;
   }
 
   async incrementAnonymousUsage(fingerprint: string): Promise<AnonymousUsage> {
-    const existing = this.anonymousUsage.get(fingerprint);
+    const existing = await this.getAnonymousUsage(fingerprint);
     if (existing) {
-      const updated: AnonymousUsage = {
-        ...existing,
-        analysisCount: existing.analysisCount + 1,
-        lastAnalysisAt: new Date(),
-      };
-      this.anonymousUsage.set(fingerprint, updated);
+      const [updated] = await db.update(anonymousUsage)
+        .set({
+          analysisCount: existing.analysisCount + 1,
+          lastAnalysisAt: new Date()
+        })
+        .where(eq(anonymousUsage.fingerprint, fingerprint))
+        .returning();
       return updated;
     }
 
-    const newUsage: AnonymousUsage = {
-      id: randomUUID(),
-      fingerprint,
-      analysisCount: 1,
-      lastAnalysisAt: new Date(),
-      createdAt: new Date(),
-    };
-    this.anonymousUsage.set(fingerprint, newUsage);
+    const [newUsage] = await db.insert(anonymousUsage)
+      .values({
+        fingerprint,
+        analysisCount: 1,
+        lastAnalysisAt: new Date(),
+      })
+      .returning();
     return newUsage;
   }
 
@@ -160,4 +131,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

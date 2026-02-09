@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  CheckCircle2, 
-  XCircle, 
+import {
+  CheckCircle2,
+  XCircle,
   AlertCircle,
   Calendar,
   Image as ImageIcon
@@ -47,8 +47,8 @@ export default function Dashboard() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -80,8 +80,8 @@ export default function Dashboard() {
         ) : analyses && analyses.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {analyses.map((analysis) => (
-              <Card 
-                key={analysis.id} 
+              <Card
+                key={analysis.id}
                 className="border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                 data-testid={`card-analysis-${analysis.id}`}
               >
