@@ -1,4 +1,0 @@
-VPS_HOST="69.62.97.13"
-VPS_USER="root"
-VPS_PATH=""
-SSH_KEY="/Users/marcelo/.ssh/id_ed25519"

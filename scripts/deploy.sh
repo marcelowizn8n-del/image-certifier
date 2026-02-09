@@ -29,6 +29,7 @@ else
     read -p "SSH Username (default: root): " VPS_USER
     VPS_USER=${VPS_USER:-root}
     read -p "Project path on VPS (e.g., /root/image-certifier): " VPS_PATH
+    VPS_PATH=${VPS_PATH:-/root/image-certifier}
     read -p "SSH Key path (default: ~/.ssh/id_ed25519): " SSH_KEY
     SSH_KEY=${SSH_KEY:-~/.ssh/id_ed25519}
     
