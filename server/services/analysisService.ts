@@ -166,6 +166,46 @@ export async function analyzeArtifacts(buffer: Buffer, stats: ImageStats): Promi
     }
 }
 
+/**
+ * Error Level Analysis (ELA)
+ * Resaves the image at a known quality and compares it to the original.
+ * Areas with high error levels indicate potential manipulation.
+ */
+export async function analyzeELA(buffer: Buffer): Promise<number> {
+    try {
+        // Resave at 90% quality
+        const resavedBuffer = await sharp(buffer)
+            .jpeg({ quality: 90 })
+            .toBuffer();
+
+        const original = sharp(buffer);
+        const resaved = sharp(resavedBuffer);
+
+        const originalMeta = await original.metadata();
+        const resavedMeta = await resaved.metadata();
+
+        if (originalMeta.width !== resavedMeta.width || originalMeta.height !== resavedMeta.height) {
+            return 0.5; // Error in comparison
+        }
+
+        // Get difference stats
+        const diff = await original
+            .composite([{ input: resavedBuffer, blend: 'difference' }])
+            .toBuffer();
+
+        const stats = await sharp(diff).stats();
+        const avgDiff = stats.channels.reduce((sum, ch) => sum + ch.mean, 0) / stats.channels.length;
+
+        // ELA score: higher difference (compared to normal noise) = higher suspicion
+        // Usually, original images have low, uniform difference.
+        // Manipulated images have bright spots in modified areas.
+        return Math.min(1, avgDiff / 10);
+    } catch (error) {
+        console.error("ELA Analysis failed:", error);
+        return 0;
+    }
+}
+
 // Technical scoring functions
 export function calculateExifScore(exif: ExifData): number {
     if (exif.software) {
@@ -226,13 +266,18 @@ export async function analyzeWithAI(imageData: string): Promise<{
                 role: "system",
                 content: `You are a highly skeptical AI image forensics expert. Your job is to detect ANY AI modifications, even subtle ones. Assume images MAY be edited until proven otherwise.
 
-HAIR & FACIAL MODIFICATIONS (very common AI edits - look carefully):
+ HAIR & FACIAL MODIFICATIONS (very common AI edits - look carefully):
 - Hair changes: added bangs/fringe, color changes, hairstyle modifications
 - Hair texture that looks too smooth, uniform, or "painted"
 - Hair edges that don't blend naturally with the forehead/face
 - Facial feature changes: nose, lips, eyes, skin smoothing
 - Age modifications (wrinkle removal, rejuvenation)
 - Makeup additions or modifications
+
+DIFFUSION & GENERATION ARTIFACTS:
+- Check for "hallucinatory" details in complex textures (leaves, grass, hair)
+- Look for mismatched earrings, glasses frames that don't join, or fingers that blend
+- Look for localized areas with DIFFERENT noise grain than the rest of the image
 
 OTHER AI MODIFICATIONS to detect:
 - Objects that look "pasted" (different noise/grain patterns)
@@ -254,6 +299,8 @@ For TRULY ORIGINAL photos (be strict):
 - Uniform lighting and shadows throughout
 
 CRITICAL RULE: If you see ANY hair modifications (bangs, fringe, color, style changes), different textures in different parts of the image, or facial edits, you MUST classify as "ai_modified". When in doubt, classify as "ai_modified" rather than "original".
+
+EXTREME SCRUTINY: Look for 0.01% artifacts. Even a tiny mismatch in edge lighting means "ai_modified".
 
 You MUST respond with valid JSON:
 {"classification":"original"|"ai_generated"|"ai_modified","confidence":0-100,"reasoning":"explanation","artifacts":["list"]}`
@@ -318,10 +365,11 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const buffer = Buffer.from(base64Data, "base64");
     const stats = await getImageStats(buffer);
 
-    const [exif, noise, artifacts] = await Promise.all([
+    const [exif, noise, artifacts, elaScore] = await Promise.all([
         extractExifData(buffer),
         analyzeNoise(buffer),
         analyzeArtifacts(buffer, stats),
+        analyzeELA(buffer),
     ]);
 
     const exifScore = calculateExifScore(exif);
@@ -334,17 +382,25 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         aiAnalysis = await analyzeWithAI(safeImageData);
     } catch (error) {
         console.error("AI analysis failed, using technical fallback:", error);
-        const technicalScore = exifScore * 0.4 + noiseScore * 0.25 + artifactScore * 0.35;
+        // ELA adds precision to technical analysis
+        const technicalScore = exifScore * 0.35 + noiseScore * 0.2 + artifactScore * 0.25 + (1 - elaScore) * 0.2;
         aiAnalysis = {
             result: technicalScore > 0.6 ? "original" : technicalScore < 0.4 ? "ai_generated" : "ai_modified",
             confidence: Math.round(Math.abs(technicalScore - 0.5) * 200),
-            reasoning: "Technical analysis fallback",
+            reasoning: "Technical analysis fallback including ELA",
             artifacts: [],
         };
     }
 
     let finalResult = aiAnalysis.result;
     let finalConfidence = aiAnalysis.confidence;
+
+    // Cross-verify AI result with ELA
+    if (elaScore > 0.6 && finalResult === "original") {
+        // High ELA difference but AI said original - highly likely modified
+        finalResult = "ai_modified";
+        finalConfidence = Math.round(elaScore * 100);
+    }
 
     if (exifScore >= 0.5 && exif.cameraMake) {
         if (aiAnalysis.result === "original") {
