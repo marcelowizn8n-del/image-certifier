@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://www.imgcertifier.app';
+const API_BASE_URL = 'https://imgcertifier.app';
 
 export interface AnalysisResult {
   id: number;
@@ -38,9 +38,9 @@ export const analyzeImage = async (imageBase64: string, filename?: string): Prom
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ 
-      imageData: imageBase64, 
-      filename: filename || 'image.jpg' 
+    body: JSON.stringify({
+      imageData: imageBase64,
+      filename: filename || 'image.jpg'
     }),
   });
 

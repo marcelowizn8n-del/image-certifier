@@ -5,9 +5,15 @@ import { createServer } from "http";
 import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
+import cors from "cors";
 
 const app = express();
 const httpServer = createServer(app);
+
+app.use(cors({
+  origin: true, // Allow all origins for mobile app access
+  credentials: true,
+}));
 
 declare module "http" {
   interface IncomingMessage {
@@ -41,7 +47,8 @@ async function initStripe() {
     const stripeSync = await getStripeSync();
 
     console.log('Setting up managed webhook...');
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+    const hostname = process.env.REPLIT_DOMAINS?.split(',')[0] || 'imgcertifier.app';
+    const webhookBaseUrl = `https://${hostname}`;
     await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
     console.log('Webhook configured');
 

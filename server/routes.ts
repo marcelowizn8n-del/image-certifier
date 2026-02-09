@@ -610,7 +610,8 @@ export async function registerRoutes(
       );
 
       // Create checkout session
-      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || req.get('host')}`;
+      const host = req.get('host') || 'imgcertifier.app';
+      const baseUrl = `https://${host}`;
       const session = await stripeService.createCheckoutSession(
         customer.id,
         priceId,
