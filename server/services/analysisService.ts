@@ -282,6 +282,37 @@ You MUST respond with valid JSON:
     };
 }
 
+/**
+ * Resizes image data (base64) if it's too large for OpenAI's 20MB limit.
+ */
+async function ensureOpenAILimit(imageData: string): Promise<string> {
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+
+    // OpenAI constant limit is 20MB for image data. 
+    // We target ~15MB to be safe with some overhead.
+    if (buffer.length < 15 * 1024 * 1024) {
+        return imageData;
+    }
+
+    console.log(`Image size (${(buffer.length / 1024 / 1024).toFixed(2)}MB) exceeds safe limit for OpenAI. Resizing...`);
+
+    // Resize down by 50% scale or more until it's smaller
+    const metadata = await sharp(buffer).metadata();
+    const targetWidth = Math.round((metadata.width || 2048) * 0.7);
+
+    const resizedBuffer = await sharp(buffer)
+        .resize({ width: targetWidth })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+    const mimeType = imageData.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
+    const resizedBase64 = `data:${mimeType};base64,${resizedBuffer.toString("base64")}`;
+
+    console.log(`Image resized to ${(resizedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+    return resizedBase64;
+}
+
 export async function analyzeImageAdvanced(imageData: string, filename: string) {
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
@@ -299,7 +330,8 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
 
     let aiAnalysis;
     try {
-        aiAnalysis = await analyzeWithAI(imageData);
+        const safeImageData = await ensureOpenAILimit(imageData);
+        aiAnalysis = await analyzeWithAI(safeImageData);
     } catch (error) {
         console.error("AI analysis failed, using technical fallback:", error);
         const technicalScore = exifScore * 0.4 + noiseScore * 0.25 + artifactScore * 0.35;

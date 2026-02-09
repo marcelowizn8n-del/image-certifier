@@ -8,13 +8,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Upload as UploadIcon, 
-  FileImage, 
-  AlertCircle, 
-  CheckCircle2, 
-  XCircle, 
-  Link2, 
+import {
+  Upload as UploadIcon,
+  FileImage,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Link2,
   Camera,
   Sparkles,
   Shield,
@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import heic2any from "heic2any";
 import type { Analysis } from "@shared/schema";
 
-const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
@@ -49,10 +49,10 @@ export default function Upload() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Analysis | null>(null);
   const [activeTab, setActiveTab] = useState("file");
-  
+
   const [imageUrl, setImageUrl] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
-  
+
   // YouTube URL detection and thumbnail extraction
   const extractYouTubeVideoId = (url: string): string | null => {
     const patterns = [
@@ -67,7 +67,7 @@ export default function Upload() {
     }
     return null;
   };
-  
+
   const getPreviewUrl = (url: string): string => {
     const videoId = extractYouTubeVideoId(url);
     if (videoId) {
@@ -76,11 +76,11 @@ export default function Upload() {
     }
     return url;
   };
-  
+
   const isYouTubeUrl = extractYouTubeVideoId(imageUrl) !== null;
   const [youtubeImageLoaded, setYoutubeImageLoaded] = useState(false);
   const [youtubeImageError, setYoutubeImageError] = useState(false);
-  
+
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [needsUserGesture, setNeedsUserGesture] = useState(false);
@@ -135,7 +135,7 @@ export default function Upload() {
     onError: (error: any) => {
       setIsAnalyzing(false);
       setProgress(0);
-      
+
       if (error.error === 'FREE_LIMIT_EXCEEDED') {
         setError("Limite gratuito atingido! Assine um plano para continuar.");
         toast.error("Limite Gratuito Atingido", {
@@ -186,7 +186,7 @@ export default function Upload() {
     onError: (error: any) => {
       setIsAnalyzing(false);
       setProgress(0);
-      
+
       if (error.error === 'FREE_LIMIT_EXCEEDED') {
         setError("Limite gratuito atingido! Assine um plano para continuar.");
         toast.error("Limite Gratuito Atingido", {
@@ -215,7 +215,7 @@ export default function Upload() {
     const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     const isValidType = ALLOWED_TYPES.includes(file.type);
     const isValidExtension = ALLOWED_EXTENSIONS.includes(fileExtension);
-    
+
     if (!isValidType && !isValidExtension) {
       return `Invalid file type. Allowed: JPEG, PNG, WebP, HEIC`;
     }
@@ -239,8 +239,8 @@ export default function Upload() {
     setResult(null);
 
     const fileExtension = selectedFile.name.toLowerCase();
-    const isHeic = fileExtension.endsWith('.heic') || fileExtension.endsWith('.heif') || 
-                   selectedFile.type === 'image/heic' || selectedFile.type === 'image/heif';
+    const isHeic = fileExtension.endsWith('.heic') || fileExtension.endsWith('.heif') ||
+      selectedFile.type === 'image/heic' || selectedFile.type === 'image/heif';
 
     if (isHeic) {
       try {
@@ -355,25 +355,25 @@ export default function Upload() {
       setCameraError(null);
       setNeedsUserGesture(false);
       setCameraLoading(true);
-      
+
       // Request camera with multiple fallback options for mobile compatibility
       const constraints = {
-        video: { 
+        video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
         audio: false
       };
-      
+
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      
+
       if (videoRef.current) {
         // Set muted to allow autoplay on mobile
         videoRef.current.muted = true;
         videoRef.current.srcObject = stream;
-        
+
         // Try to play immediately
         try {
           await videoRef.current.play();
@@ -411,20 +411,20 @@ export default function Upload() {
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.drawImage(video, 0, 0);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
       setPreview(dataUrl);
-      
+
       canvas.toBlob((blob) => {
         if (blob) {
           const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
           setFile(capturedFile);
         }
       }, "image/jpeg", 0.9);
-      
+
       stopCamera();
     }
   };
@@ -491,7 +491,7 @@ export default function Upload() {
 
   const handleDownloadWithWatermark = async () => {
     if (!result) return;
-    
+
     setIsDownloading(true);
     try {
       let certType: CertificationType = 'original';
@@ -500,15 +500,15 @@ export default function Upload() {
       } else if (result.result === 'ai_modified') {
         certType = 'ai-modified';
       }
-      
+
       const imageToDownload = certifiedPreview || (preview ? await applyWatermark(preview, certType) : null);
       if (!imageToDownload) {
         throw new Error("No image available");
       }
-      
+
       const filename = `certified-${certType}-${Date.now()}.png`;
       downloadImage(imageToDownload, filename);
-      
+
       toast.success(t('download.success') || "Download Complete", {
         description: t('download.description') || "Image with certification seal downloaded successfully.",
       });
@@ -524,7 +524,7 @@ export default function Upload() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AnalysisLoadingAnimation progress={progress} isAnalyzing={isAnalyzing} />
-      
+
       <Header />
 
       {/* Main Content */}
@@ -549,7 +549,7 @@ export default function Upload() {
                 Upload Image
               </CardTitle>
               <CardDescription>
-                Supported formats: JPEG, PNG, WebP, HEIC (max 16MB)
+                Supported formats: JPEG, PNG, WebP, HEIC (max 50MB)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -572,11 +572,10 @@ export default function Upload() {
                 <TabsContent value="file">
                   {!preview ? (
                     <div
-                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
-                        isDragging
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50 hover:bg-muted/30"
-                      }`}
+                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${isDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50 hover:bg-muted/30"
+                        }`}
                       onDrop={handleDrop}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -643,7 +642,7 @@ export default function Upload() {
                         {isYouTubeUrl && (
                           <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 z-10">
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                             </svg>
                             YouTube Thumbnail
                           </div>
@@ -652,7 +651,7 @@ export default function Upload() {
                           <div className="w-full h-48 bg-muted/20 flex items-center justify-center">
                             <div className="text-center text-muted-foreground">
                               <svg className="w-12 h-12 mx-auto mb-2 text-red-500" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                               </svg>
                               <p className="text-sm">YouTube video detected</p>
                               <p className="text-xs">Click "Analyze Image" to analyze the thumbnail</p>
@@ -693,7 +692,7 @@ export default function Upload() {
                         <AlertDescription>{cameraError}</AlertDescription>
                       </Alert>
                     )}
-                    
+
                     {!isCameraActive && !preview ? (
                       <div className="text-center py-8">
                         <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -863,7 +862,7 @@ export default function Upload() {
                       <p className="text-sm text-muted-foreground mb-2">Confidence Level</p>
                       <Progress value={result.confidence} className="h-3" />
                     </div>
-                    
+
                     {result.artifacts && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Detected Artifacts</p>
@@ -911,8 +910,8 @@ export default function Upload() {
               <DebugScoresCard debugScores={result.debugScores || null} />
 
               <div className="flex justify-center gap-3 flex-wrap">
-                <Button 
-                  onClick={handleDownloadWithWatermark} 
+                <Button
+                  onClick={handleDownloadWithWatermark}
                   disabled={isDownloading}
                   data-testid="button-download-certified"
                 >
