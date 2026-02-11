@@ -270,7 +270,7 @@ export default function UploadScreen() {
                         value && (
                           <View key={key} style={[styles.artifactBadge, { backgroundColor: colors.secondary }]}>
                             <Text style={[styles.artifactText, { color: colors.text }]}>
-                              {key.replace(/([A-Z])/g, ' $1').trim()}
+                              {t(`result.${key}`)}
                             </Text>
                           </View>
                         )

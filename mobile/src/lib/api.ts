@@ -5,12 +5,11 @@ export interface AnalysisResult {
   result: 'original' | 'ai_generated' | 'ai_modified' | 'uncertain';
   confidence: number;
   artifacts?: {
-    textureAnomalies?: boolean;
-    lightingInconsistencies?: boolean;
-    anatomicalIssues?: boolean;
-    patternRepetition?: boolean;
-    colorArtifacts?: boolean;
-    blurringAnomalies?: boolean;
+    compression?: boolean;
+    blur?: boolean;
+    colorAdjustment?: boolean;
+    noisePatterns?: boolean;
+    inconsistentLighting?: boolean;
     edgeArtifacts?: boolean;
   };
   metadata?: {

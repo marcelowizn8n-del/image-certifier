@@ -2,6 +2,7 @@ import sharp from "sharp";
 import ExifParser from "exif-parser";
 import OpenAI from "openai";
 import { type AnalysisResult } from "@shared/schema";
+import { analyzeWithSightEngine, isSightEngineConfigured } from "./sightengineService";
 
 // Initialize OpenAI client for AI-powered analysis
 const openai = new OpenAI({
@@ -365,11 +366,12 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const buffer = Buffer.from(base64Data, "base64");
     const stats = await getImageStats(buffer);
 
-    const [exif, noise, artifacts, elaScore] = await Promise.all([
+    const [exif, noise, artifacts, elaScore, sightEngine] = await Promise.all([
         extractExifData(buffer),
         analyzeNoise(buffer),
         analyzeArtifacts(buffer, stats),
         analyzeELA(buffer),
+        analyzeWithSightEngine(buffer),
     ]);
 
     const exifScore = calculateExifScore(exif);
@@ -413,6 +415,30 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
 
     if (!exif.hasExif && aiAnalysis.result === "ai_generated") {
         finalConfidence = Math.min(99, finalConfidence + 5);
+    }
+
+    // SightEngine Verification
+    if (sightEngine && sightEngine.isGenerated) {
+        if (finalResult === "original") {
+            // Strong contradiction: SightEngine says generated, but others say original
+            // Trust SightEngine/GPT if confidence is high, or degrade confidence
+            if (sightEngine.confidence > 80) {
+                finalResult = "ai_generated";
+                finalConfidence = Math.round(sightEngine.confidence);
+            } else {
+                finalConfidence = Math.max(0, finalConfidence - 30);
+            }
+        } else {
+            // Confirmation: both suspect AI
+            finalConfidence = Math.min(99, finalConfidence + 15);
+        }
+    } else if (sightEngine && !sightEngine.isGenerated && sightEngine.confidence > 90) {
+        // SightEngine is very sure it's original
+        if (finalResult !== "original") {
+            finalConfidence = Math.max(0, finalConfidence - 20);
+        } else {
+            finalConfidence = Math.min(99, finalConfidence + 10);
+        }
     }
 
     return {

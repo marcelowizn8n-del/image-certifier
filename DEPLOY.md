@@ -21,6 +21,30 @@ sudo rm /etc/nginx/sites-enabled/imgcertifier
 5. Ensure the **Port** is set to `5000` (the port your app is running on).
 6. EasyPanel will automatically request and install the SSL certificate via Let's Encrypt.
 
+## 2.1 Configure Cloudflare (Recommended)
+Using Cloudflare is highly recommended to handle SSL automatically and prevent errors.
+
+1.  **Create Account**: Go to [cloudflare.com](https://www.cloudflare.com) and sign up.
+2.  **Add Site**: Enter your domain `imgcertifier.app`.
+3.  **Select Plan**: Choose the **Free** plan.
+4.  **Update Nameservers**: Cloudflare will give you 2 nameservers (e.g., `bob.ns.cloudflare.com`).
+    *   Go to your domain registrar (where you bought the domain, e.g., Hostinger, GoDaddy).
+    *   Find "DNS / Nameservers" configuration.
+    *   Replace existing nameservers with the ones from Cloudflare.
+5.  **Configure DNS in Cloudflare**:
+    *   Add an **A Record**:
+        *   Name: `@` (root)
+        *   Content: `YOUR_VPS_IP_ADDRESS` (copy from Hostinger/EasyPanel)
+        *   Proxy status: **Proxied (Orange Cloud)**
+    *   Add a **CNAME Record**:
+        *   Name: `www`
+        *   Content: `imgcertifier.app`
+        *   Proxy status: **Proxied (Orange Cloud)**
+6.  **Configure SSL (Crucial)**:
+    *   Go to **SSL/TLS** > **Overview** in Cloudflare.
+    *   Set mode to **Full** or **Full (Strict)**.
+    *   *Note: Do NOT set to "Flexible", this causes redirect loops.*
+
 ## 3. Verify
 
 - Wait a few minutes for the DNS and SSL to propagate.

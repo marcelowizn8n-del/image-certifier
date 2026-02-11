@@ -4,7 +4,7 @@ const APPLE_VERIFY_RECEIPT_URL = 'https://buy.itunes.apple.com/verifyReceipt';
 const APPLE_SANDBOX_VERIFY_RECEIPT_URL = 'https://sandbox.itunes.apple.com/verifyReceipt';
 
 export class AppleService {
-    async verifyReceipt(receiptData: string, userId?: number) {
+    async verifyReceipt(receiptData: string, userId?: string) {
         let response = await this.callAppleVerify(receiptData, APPLE_VERIFY_RECEIPT_URL);
 
         // If it's a sandbox receipt being sent to production, try sandbox
@@ -24,7 +24,7 @@ export class AppleService {
 
         // For simplicity, we'll mark the user as premium if we have a valid receipt
         if (userId) {
-            await storage.updateUser(String(userId), { isPremium: true });
+            await storage.updateUser(userId, { isPremium: true });
         }
 
         return response;

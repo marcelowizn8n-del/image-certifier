@@ -6,6 +6,7 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 import cors from "cors";
+import { setupAuth } from "./auth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -104,6 +105,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: '100mb' }));
 
+setupAuth(app);
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -173,6 +176,6 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
+    log(`🚀 (Updated) Server serving on port ${port}`);
   });
 })();
