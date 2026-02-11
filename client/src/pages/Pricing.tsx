@@ -43,8 +43,12 @@ export default function Pricing() {
         window.location.href = data.url;
       }
     },
-    onError: (error: Error) => {
-      toast.error("Checkout failed", { description: error.message });
+    onError: (error: any) => {
+      if (error?.status === 401) {
+        window.location.href = "/auth?next=/pricing";
+        return;
+      }
+      toast.error("Checkout failed", { description: error?.message || "Checkout failed" });
     },
   });
 

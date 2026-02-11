@@ -15,6 +15,13 @@ import { analyzeImageAdvanced } from "./services/analysisService";
 import { processVideoAnalysis } from "./services/videoService";
 import { appleService } from "./services/appleService";
 
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.id) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  return next();
+}
+
 // YouTube URL patterns and thumbnail extraction
 const YOUTUBE_PATTERNS = [
   /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
@@ -136,7 +143,7 @@ export async function registerRoutes(
           error: "FREE_LIMIT_EXCEEDED",
           remaining: 0,
           limit: FREE_ANALYSIS_LIMIT,
-          upgradeUrl: "/pricing"
+          upgradeUrl: "/auth?next=/pricing"
         });
       }
 
@@ -194,7 +201,7 @@ export async function registerRoutes(
           error: "FREE_LIMIT_EXCEEDED",
           remaining: 0,
           limit: FREE_ANALYSIS_LIMIT,
-          upgradeUrl: "/pricing"
+          upgradeUrl: "/auth?next=/pricing"
         });
       }
 
@@ -595,7 +602,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/stripe/checkout", async (req, res) => {
+  app.post("/api/stripe/checkout", requireAuth, async (req, res) => {
     try {
       const { priceId, email } = req.body;
 
@@ -603,11 +610,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Price ID is required" });
       }
 
-      // Create customer
-      const customer = await stripeService.createCustomer(
-        email || 'customer@example.com',
-        'anonymous'
-      );
+      const userId = (req.user as any).id as string;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Reuse Stripe customer when available, else create one tied to this user.
+      const customer = user.stripeCustomerId
+        ? { id: user.stripeCustomerId }
+        : await stripeService.createCustomer(email || user.email, userId);
+
+      if (!user.stripeCustomerId) {
+        await storage.updateUser(userId, { stripeCustomerId: customer.id });
+      }
 
       // Create checkout session
       const host = req.get('host') || 'imgcertifier.app';

@@ -29,6 +29,8 @@ export const updateUserSchema = z.object({
   isPremium: z.boolean().optional(),
   isFreeAccount: z.boolean().optional(),
   role: z.enum(["user", "admin"]).optional(),
+  stripeCustomerId: z.string().optional(),
+  stripeSubscriptionId: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

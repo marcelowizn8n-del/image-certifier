@@ -142,7 +142,7 @@ export default function Upload() {
           description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
           action: {
             label: "Ver Planos",
-            onClick: () => window.location.href = "/pricing",
+            onClick: () => window.location.href = "/auth?next=/pricing",
           },
         });
       } else {
@@ -193,7 +193,7 @@ export default function Upload() {
           description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
           action: {
             label: "Ver Planos",
-            onClick: () => window.location.href = "/pricing",
+            onClick: () => window.location.href = "/auth?next=/pricing",
           },
         });
       } else if (error.error === 'INSTAGRAM_NOT_SUPPORTED') {
