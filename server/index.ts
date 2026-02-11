@@ -10,6 +10,14 @@ import cors from "cors";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust the first proxy (EasyPanel/Nginx/Traefik)
+app.set('trust proxy', 1);
+
+// Health check endpoint
+app.get('/health', (_req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use(cors({
   origin: true, // Allow all origins for mobile app access
   credentials: true,
