@@ -313,7 +313,7 @@ You MUST respond with valid JSON:
             {
                 role: "user",
                 content: [
-                    { type: "text", text: "Analyze this image with extreme scrutiny. Pay special attention to: 1) HAIR - look for bangs/fringe that might be added, unnatural hair texture or edges; 2) FACE - any smoothing, feature changes, or edits; 3) OBJECTS - text, numbers, or items that look pasted. If ANYTHING looks modified or has different texture than surrounding areas, classify as ai_modified. Only classify as original if you're 100% certain nothing was edited. Return JSON only." },
+                    { type: "text", text: "Analyze this image for signs of AI generation or AI-assisted edits. Pay special attention to: 1) HAIR (unnatural texture/edges), 2) FACE (localized smoothing/feature edits), 3) OBJECTS/TEXT (pasted elements). Only classify as ai_modified when you can name clear, specific visual evidence. If evidence is weak/uncertain, prefer original with lower confidence. Return JSON only." },
                     { type: "image_url", image_url: { url: imageData, detail: "high" } }
                 ]
             }
@@ -497,6 +497,8 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             exif_score: exifScore,
             noise_score: noiseScore,
             artifact_score: artifactScore,
+            ela_score: elaScore,
+            technical_score: technicalScore,
             ai_confidence: aiAnalysis.confidence / 100,
             realness_score: finalResult === "original" ? finalConfidence / 100 : 1 - (finalConfidence / 100),
             significant_artifacts: Object.values(artifacts).filter(Boolean).length,
