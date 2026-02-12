@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,21 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Modal,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { analyzeImage, analyzeImageUrl, AnalysisResult } from '../../src/lib/api';
 import { getResultColor, getSealColor } from '../../src/lib/theme';
+
+const AI_CONSENT_STORAGE_KEY = 'ai_processing_consent_v1';
 
 export default function UploadScreen() {
   const { t } = useTranslation();
@@ -26,6 +31,66 @@ export default function UploadScreen() {
   const [imageUrl, setImageUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  const [consentLoaded, setConsentLoaded] = useState(false);
+  const [hasAiConsent, setHasAiConsent] = useState<boolean | null>(null);
+  const [consentModalVisible, setConsentModalVisible] = useState(false);
+  const [pendingAnalyze, setPendingAnalyze] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConsent = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(AI_CONSENT_STORAGE_KEY);
+        if (cancelled) return;
+        if (stored === 'granted') setHasAiConsent(true);
+        else if (stored === 'denied') setHasAiConsent(false);
+        else setHasAiConsent(null);
+      } catch {
+        if (!cancelled) setHasAiConsent(null);
+      } finally {
+        if (!cancelled) setConsentLoaded(true);
+      }
+    };
+
+    loadConsent();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openPrivacyPolicy = () => {
+    Linking.openURL('https://imgcertifier.app/privacy');
+  };
+
+  const ensureAiConsent = async (): Promise<boolean> => {
+    if (!consentLoaded) return false;
+    if (hasAiConsent === true) return true;
+
+    setConsentModalVisible(true);
+    return false;
+  };
+
+  const handleConsentDecision = async (decision: 'granted' | 'denied') => {
+    try {
+      await AsyncStorage.setItem(AI_CONSENT_STORAGE_KEY, decision);
+    } catch {
+    }
+
+    setHasAiConsent(decision === 'granted');
+    setConsentModalVisible(false);
+
+    if (decision !== 'granted') {
+      setPendingAnalyze(false);
+      return;
+    }
+
+    if (pendingAnalyze) {
+      setPendingAnalyze(false);
+      void analyzeCurrentImageInternal();
+    }
+  };
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -47,6 +112,20 @@ export default function UploadScreen() {
     }
   };
 
+  const analyzeCurrentImage = async () => {
+    if (!consentLoaded) {
+      Alert.alert('Please wait', 'Loading app settings...');
+      return;
+    }
+
+    if (!(await ensureAiConsent())) {
+      setPendingAnalyze(true);
+      return;
+    }
+
+    await analyzeCurrentImageInternal();
+  };
+
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
@@ -66,7 +145,7 @@ export default function UploadScreen() {
     }
   };
 
-  const analyzeCurrentImage = async () => {
+  const analyzeCurrentImageInternal = async () => {
     if (!imageUri && !imageUrl) {
       Alert.alert('No image', 'Please select an image or enter a URL');
       return;
@@ -134,6 +213,44 @@ export default function UploadScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Modal
+        visible={consentModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConsentModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Consent Required
+            </Text>
+            <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+              When you tap Analyze, the selected image will be uploaded to our server and may be processed by third-party AI services (OpenAI and SightEngine) to provide the authenticity result. If present, we may also send technical image metadata (such as EXIF). This data is not used for advertising or tracking.
+            </Text>
+
+            <TouchableOpacity onPress={openPrivacyPolicy} style={styles.modalLinkRow}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+              <Text style={[styles.modalLinkText, { color: colors.primary }]}>Privacy Policy</Text>
+            </TouchableOpacity>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+                onPress={() => void handleConsentDecision('denied')}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                onPress={() => void handleConsentDecision('granted')}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.primaryForeground }]}>I Agree</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
@@ -335,6 +452,53 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  modalLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  modalLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  modalButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   scrollContent: {
     padding: 20,

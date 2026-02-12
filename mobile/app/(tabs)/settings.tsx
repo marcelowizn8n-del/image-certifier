@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useLanguage } from '../../src/contexts/LanguageContext';
 import Constants from 'expo-constants';
+
+const AI_CONSENT_STORAGE_KEY = 'ai_processing_consent_v1';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { colors, theme, setTheme } = useTheme();
   const { language, setLanguage, languages } = useLanguage();
+
+  const [aiConsent, setAiConsent] = useState<'granted' | 'denied' | 'unknown'>('unknown');
 
   const themeOptions = [
     { key: 'auto' as const, label: t('settings.auto'), icon: 'phone-portrait-outline' },
@@ -27,6 +32,34 @@ export default function SettingsScreen() {
 
   const openLink = (url: string) => {
     Linking.openURL(url);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(AI_CONSENT_STORAGE_KEY);
+        if (cancelled) return;
+        if (stored === 'granted' || stored === 'denied') setAiConsent(stored);
+        else setAiConsent('unknown');
+      } catch {
+        if (!cancelled) setAiConsent('unknown');
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const resetAiConsent = async () => {
+    try {
+      await AsyncStorage.removeItem(AI_CONSENT_STORAGE_KEY);
+    } catch {
+    }
+    setAiConsent('unknown');
   };
 
   return (
@@ -89,6 +122,20 @@ export default function SettingsScreen() {
             {t('settings.about')}
           </Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.optionRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}
+              onPress={resetAiConsent}
+            >
+              <Ionicons name="sparkles-outline" size={20} color={colors.textSecondary} />
+              <View style={styles.optionColumn}>
+                <Text style={[styles.optionText, { color: colors.text }]}>AI processing consent</Text>
+                <Text style={[styles.subText, { color: colors.textTertiary }]}
+                >
+                  Status: {aiConsent}
+                </Text>
+              </View>
+              <Text style={[styles.resetText, { color: colors.primary }]}>Reset</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.optionRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}
               onPress={() => openLink('https://imgcertifier.app/privacy')}
@@ -163,6 +210,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  optionColumn: {
+    flex: 1,
+    flexDirection: 'column',
+  },
   langLabel: {
     fontSize: 14,
     fontWeight: '700',
@@ -171,6 +222,14 @@ const styles = StyleSheet.create({
   optionText: {
     flex: 1,
     fontSize: 16,
+  },
+  subText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   versionText: {
     fontSize: 14,

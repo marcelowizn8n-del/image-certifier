@@ -85,6 +85,15 @@ export const analyses = pgTable("analyses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const analysisFeedback = pgTable("analysis_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  analysisId: varchar("analysis_id").notNull().unique(),
+  correctLabel: text("correct_label").$type<AnalysisResult>().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertAnalysisSchema = createInsertSchema(analyses).omit({
   id: true,
   createdAt: true,
@@ -92,6 +101,8 @@ export const insertAnalysisSchema = createInsertSchema(analyses).omit({
 
 export type InsertAnalysis = z.infer<typeof insertAnalysisSchema>;
 export type Analysis = typeof analyses.$inferSelect;
+
+export type AnalysisFeedback = typeof analysisFeedback.$inferSelect;
 
 // Validation schemas for API
 export const analyzeImageSchema = z.object({

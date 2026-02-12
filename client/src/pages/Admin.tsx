@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Analysis, User } from "@shared/schema";
 import { 
@@ -49,6 +50,17 @@ interface StripeCustomer {
   product_name: string | null;
   unit_amount: number | null;
   currency: string | null;
+}
+
+type AnalysisFeedbackLabel = "original" | "ai_generated" | "ai_modified" | "uncertain";
+
+interface AnalysisFeedbackRow {
+  id: string;
+  analysisId: string;
+  correctLabel: AnalysisFeedbackLabel;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface SubscriptionStats {
@@ -146,6 +158,15 @@ export default function Admin() {
     queryKey: ["/api/stripe/products-with-prices"],
   });
 
+  const { data: feedbackData } = useQuery<{ data: AnalysisFeedbackRow[] }>({
+    queryKey: ["/api/admin/analysis-feedback"],
+    enabled: isAuthenticated,
+  });
+
+  const feedbackByAnalysisId = new Map(
+    (feedbackData?.data || []).map((row) => [row.analysisId, row])
+  );
+
   const customers = customersData?.data || [];
   const products = productsData?.data || [];
 
@@ -216,6 +237,20 @@ export default function Admin() {
       setEditingPrice(null);
       setNewPriceValue("");
       toast.success("Preço atualizado");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const saveFeedbackMutation = useMutation({
+    mutationFn: async (payload: { analysisId: string; correctLabel: AnalysisFeedbackLabel }) => {
+      const response = await apiRequest("POST", "/api/admin/analysis-feedback", payload);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/analysis-feedback"] });
+      toast.success("Feedback salvo");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -605,15 +640,40 @@ export default function Admin() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`text-sm font-medium ${
-                            analysis.result === 'original' ? 'text-green-500' :
-                            analysis.result === 'ai_generated' ? 'text-red-500' :
-                            'text-yellow-500'
-                          }`}>
-                            {t(`result.${analysis.result}`)}
-                          </span>
-                          <p className="text-xs text-muted-foreground">{analysis.confidence}%</p>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className={`text-sm font-medium ${
+                              analysis.result === 'original' ? 'text-green-500' :
+                              analysis.result === 'ai_generated' ? 'text-red-500' :
+                              'text-yellow-500'
+                            }`}>
+                              {t(`result.${analysis.result}`)}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{analysis.confidence}%</p>
+                          </div>
+
+                          <div className="w-44">
+                            <Select
+                              value={feedbackByAnalysisId.get(analysis.id)?.correctLabel || ""}
+                              onValueChange={(value) => {
+                                if (!value) return;
+                                saveFeedbackMutation.mutate({
+                                  analysisId: analysis.id,
+                                  correctLabel: value as AnalysisFeedbackLabel,
+                                });
+                              }}
+                            >
+                              <SelectTrigger data-testid={`select-feedback-${analysis.id}`}>
+                                <SelectValue placeholder="Corrigir" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="original">original</SelectItem>
+                                <SelectItem value="ai_generated">ai_generated</SelectItem>
+                                <SelectItem value="ai_modified">ai_modified</SelectItem>
+                                <SelectItem value="uncertain">uncertain</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                     ))}

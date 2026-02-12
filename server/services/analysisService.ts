@@ -573,10 +573,10 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             technicalScore >= 0.82 &&
             noiseScore >= 0.7 &&
             artifactScore >= 0.8 &&
-            (exif.hasExif || sightEngineSuggestsOriginal || finalConfidence >= 85) &&
+            (exif.hasExif || sightEngineSuggestsOriginal) &&
             (!isNonPhotoLike || (hasNonAiEvidence && finalConfidence >= 85));
 
-        if (hasStrongOriginalEvidence && finalConfidence >= 70) {
+        if (hasStrongOriginalEvidence && finalConfidence >= 85) {
             conservativeResult = "original";
             conservativeConfidence = finalConfidence;
         }

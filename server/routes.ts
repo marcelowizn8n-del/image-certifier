@@ -9,6 +9,7 @@ import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { analysisFeedback } from "@shared/schema";
 import { isVideoAnalysisConfigured } from "./videoAnalysisClient";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -57,10 +58,25 @@ function getYouTubeThumbnailUrl(videoId: string): string {
 
 // Generate fingerprint from request for freemium tracking
 function getFingerprint(req: Request): string {
-  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const cfIp = req.headers['cf-connecting-ip'];
+  const realIp = req.headers['x-real-ip'];
+  const forwardedFor = req.headers['x-forwarded-for'];
+
+  const forwardedIp =
+    typeof forwardedFor === 'string'
+      ? forwardedFor.split(',')[0]?.trim()
+      : Array.isArray(forwardedFor)
+        ? forwardedFor[0]?.split(',')[0]?.trim()
+        : undefined;
+
+  const headerIp =
+    (typeof cfIp === 'string' && cfIp.trim()) ||
+    (typeof realIp === 'string' && realIp.trim()) ||
+    forwardedIp;
+
+  const ip = headerIp || req.ip || req.socket.remoteAddress || 'unknown';
   const userAgent = req.headers['user-agent'] || '';
-  const acceptLang = req.headers['accept-language'] || '';
-  const data = `${ip}-${userAgent}-${acceptLang}`;
+  const data = `${ip}-${userAgent}`;
   return crypto.createHash('sha256').update(data).digest('hex').substring(0, 32);
 }
 
@@ -114,6 +130,56 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error resetting password:", error);
       return res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.get("/api/admin/analysis-feedback", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { analysisId } = (req.query ?? {}) as { analysisId?: string };
+      if (analysisId) {
+        const rows = await db.select().from(analysisFeedback).where(sql`${analysisFeedback.analysisId} = ${analysisId}`);
+        return res.json({ data: rows });
+      }
+      const rows = await db.select().from(analysisFeedback).orderBy(sql`${analysisFeedback.updatedAt} DESC`);
+      return res.json({ data: rows });
+    } catch (error) {
+      console.error("Error fetching analysis feedback:", error);
+      return res.status(500).json({ message: "Failed to fetch analysis feedback" });
+    }
+  });
+
+  app.post("/api/admin/analysis-feedback", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { analysisId, correctLabel, notes } = req.body ?? {};
+      if (!analysisId || !correctLabel) {
+        return res.status(400).json({ message: "analysisId and correctLabel are required" });
+      }
+
+      const allowed = ["original", "ai_generated", "ai_modified", "uncertain"] as const;
+      if (!allowed.includes(correctLabel)) {
+        return res.status(400).json({ message: "Invalid correctLabel" });
+      }
+
+      const values = {
+        analysisId: String(analysisId),
+        correctLabel,
+        notes: notes ? String(notes) : null,
+        updatedAt: new Date(),
+      };
+
+      const [saved] = await db
+        .insert(analysisFeedback)
+        .values(values as any)
+        .onConflictDoUpdate({
+          target: analysisFeedback.analysisId,
+          set: values as any,
+        })
+        .returning();
+
+      return res.json({ success: true, feedback: saved });
+    } catch (error) {
+      console.error("Error saving analysis feedback:", error);
+      return res.status(500).json({ message: "Failed to save analysis feedback" });
     }
   });
 
