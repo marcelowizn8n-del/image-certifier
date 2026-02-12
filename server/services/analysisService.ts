@@ -278,6 +278,10 @@ export async function analyzeWithAI(imageData: string): Promise<{
                 role: "system",
                 content: `You are a careful AI image forensics expert. Your job is to detect AI generation or AI-assisted edits, but you must avoid false positives. Do NOT assume an image is edited by default.
 
+IMPORTANT DEFINITIONS:
+- "original" means a real-world camera photo (a photograph).
+- If the image is an illustration, cartoon, comic, 3D/CG render, infographic, screenshot of artwork, or stylized digital art, it is NOT an "original" photo. In those cases, you MUST classify it as "ai_generated" (even if it looks clean), unless you have strong evidence it is a human-made illustration (still NOT a photo; but choose ai_generated rather than original).
+
  HAIR & FACIAL MODIFICATIONS (very common AI edits - look carefully):
 - Hair changes: added bangs/fringe, color changes, hairstyle modifications
 - Hair texture that looks too smooth, uniform, or "painted"
@@ -324,7 +328,7 @@ You MUST respond with valid JSON:
             {
                 role: "user",
                 content: [
-                    { type: "text", text: "Analyze this image for signs of AI generation or AI-assisted edits. Pay special attention to: 1) HAIR (unnatural texture/edges), 2) FACE (localized smoothing/feature edits), 3) OBJECTS/TEXT (pasted elements). Only classify as ai_modified when you can name clear, specific visual evidence. If evidence is weak/uncertain, prefer original with lower confidence. Return JSON only." },
+                    { type: "text", text: "Analyze this image for signs of AI generation or AI-assisted edits. First decide if it is a real camera photo vs an illustration/cartoon/comic/CG render. If it is not a real photo, do NOT label it as original. Pay special attention to: 1) HAIR (unnatural texture/edges), 2) FACE (localized smoothing/feature edits), 3) OBJECTS/TEXT (pasted elements). Only classify as ai_modified when you can name clear, specific visual evidence. If evidence is weak/uncertain, prefer original with lower confidence. Return JSON only." },
                     { type: "image_url", image_url: { url: imageData, detail: "high" } }
                 ]
             }
@@ -526,11 +530,13 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             conservativeConfidence = finalConfidence;
         }
     } else if (finalResult === "original") {
+        const isNonJpegWithoutExif = !exif.hasExif && !isJpeg;
         const hasStrongOriginalEvidence =
             technicalScore >= 0.72 &&
             noiseScore >= 0.7 &&
             artifactScore >= 0.75 &&
-            (exif.hasExif || sightEngineSuggestsOriginal);
+            (exif.hasExif || sightEngineSuggestsOriginal) &&
+            !isNonJpegWithoutExif;
 
         if (hasStrongOriginalEvidence && finalConfidence >= 70) {
             conservativeResult = "original";
