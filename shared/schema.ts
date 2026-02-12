@@ -29,6 +29,7 @@ export const updateUserSchema = z.object({
   isPremium: z.boolean().optional(),
   isFreeAccount: z.boolean().optional(),
   role: z.enum(["user", "admin"]).optional(),
+  password: z.string().optional(),
   stripeCustomerId: z.string().optional(),
   stripeSubscriptionId: z.string().optional(),
 });
@@ -68,9 +69,17 @@ export const analyses = pgTable("analyses", {
     ai_confidence: number;
     realness_score: number;
     significant_artifacts: number;
+    artifact_score?: number;
+    ela_score?: number;
+    technical_score?: number;
     ml_ai_score?: number;
     ml_human_score?: number;
     ml_model?: string;
+    noise_level?: number;
+    noise_consistency?: number;
+    ai_reasoning?: string;
+    ai_detected_artifacts?: string[];
+    ml_error?: string;
   }>(),
   imageData: text("image_data"), // Base64 encoded image for display
   createdAt: timestamp("created_at").defaultNow().notNull(),

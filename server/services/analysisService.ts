@@ -443,9 +443,9 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const technicalSuggestsOriginal =
         technicalScore >= 0.67 &&
         artifactScore >= 0.75 &&
-        elaScore < 0.55;
+        effectiveElaScore < 0.55;
 
-    const sightEngineSuggestsOriginal =
+    const sightEngineSuggestsOriginalForPngOverride =
         !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
 
     if (
@@ -453,7 +453,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         finalConfidence >= 85 &&
         !exif.hasExif &&
         stats.format.toUpperCase() === "PNG" &&
-        (technicalSuggestsOriginal || sightEngineSuggestsOriginal)
+        (technicalSuggestsOriginal || sightEngineSuggestsOriginalForPngOverride)
     ) {
         finalResult = "original";
         finalConfidence = Math.max(60, Math.min(99, Math.round(technicalScore * 100)));
@@ -486,6 +486,60 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             finalConfidence = Math.min(99, finalConfidence + 10);
         }
     }
+
+    // Conservative, high-precision policy:
+    // only return a definitive label when evidence is strong and corroborated.
+    // otherwise return "uncertain" to avoid false positives.
+    const suspiciousArtifactCount = [
+        artifacts.compression,
+        artifacts.blur,
+        artifacts.colorAdjustment,
+        artifacts.noisePatterns,
+        artifacts.inconsistentLighting,
+        artifacts.edgeArtifacts,
+        artifacts.unnaturalSmoothing,
+        artifacts.repetitivePatterns,
+    ].filter(Boolean).length;
+
+    const sightEngineSuggestsGenerated = !!sightEngine && sightEngine.isGenerated && sightEngine.confidence >= 90;
+    const sightEngineSuggestsOriginal = !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
+
+    let conservativeResult: AnalysisResult = "uncertain";
+    let conservativeConfidence = Math.min(69, Math.max(50, finalConfidence));
+
+    if (sightEngineSuggestsGenerated) {
+        conservativeResult = "ai_generated";
+        conservativeConfidence = Math.max(conservativeConfidence, Math.round(sightEngine!.confidence));
+    } else if (finalResult === "ai_generated") {
+        if (finalConfidence >= 90) {
+            conservativeResult = "ai_generated";
+            conservativeConfidence = finalConfidence;
+        }
+    } else if (finalResult === "ai_modified") {
+        const hasStrongModificationEvidence =
+            (isJpeg && effectiveElaScore >= 0.75) ||
+            suspiciousArtifactCount >= 2 ||
+            (suspiciousArtifactCount >= 1 && technicalScore <= 0.55);
+
+        if (hasStrongModificationEvidence && finalConfidence >= 90) {
+            conservativeResult = "ai_modified";
+            conservativeConfidence = finalConfidence;
+        }
+    } else if (finalResult === "original") {
+        const hasStrongOriginalEvidence =
+            technicalScore >= 0.72 &&
+            noiseScore >= 0.7 &&
+            artifactScore >= 0.75 &&
+            (exif.hasExif || sightEngineSuggestsOriginal);
+
+        if (hasStrongOriginalEvidence && finalConfidence >= 70) {
+            conservativeResult = "original";
+            conservativeConfidence = finalConfidence;
+        }
+    }
+
+    finalResult = conservativeResult;
+    finalConfidence = conservativeConfidence;
 
     return {
         result: finalResult as AnalysisResult,

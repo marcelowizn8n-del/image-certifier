@@ -102,6 +102,10 @@ export default function Upload() {
 
   const applySealToPreview = async (analysisResult: Analysis, imageData: string) => {
     try {
+      if (analysisResult.result === 'uncertain') {
+        setCertifiedPreview(null);
+        return;
+      }
       let certType: CertificationType = 'original';
       if (analysisResult.result === 'ai_generated') {
         certType = 'ai-generated';
@@ -494,6 +498,9 @@ export default function Upload() {
 
     setIsDownloading(true);
     try {
+      if (result.result === 'uncertain') {
+        throw new Error("Cannot apply certification seal to an inconclusive result");
+      }
       let certType: CertificationType = 'original';
       if (result.result === 'ai_generated') {
         certType = 'ai-generated';
