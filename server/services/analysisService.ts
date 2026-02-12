@@ -265,7 +265,7 @@ export async function analyzeWithAI(imageData: string): Promise<{
         messages: [
             {
                 role: "system",
-                content: `You are a highly skeptical AI image forensics expert. Your job is to detect ANY AI modifications, even subtle ones. Assume images MAY be edited until proven otherwise.
+                content: `You are a careful AI image forensics expert. Your job is to detect AI generation or AI-assisted edits, but you must avoid false positives. Do NOT assume an image is edited by default.
 
  HAIR & FACIAL MODIFICATIONS (very common AI edits - look carefully):
 - Hair changes: added bangs/fringe, color changes, hairstyle modifications
@@ -299,9 +299,13 @@ For TRULY ORIGINAL photos (be strict):
 - Natural hair with individual strands visible
 - Uniform lighting and shadows throughout
 
-CRITICAL RULE: If you see ANY hair modifications (bangs, fringe, color, style changes), different textures in different parts of the image, or facial edits, you MUST classify as "ai_modified". When in doubt, classify as "ai_modified" rather than "original".
+CRITICAL RULE: Only classify as "ai_modified" when you have clear, specific evidence of editing (e.g. localized mismatched noise/grain, inconsistent lighting/shadows, pasted objects, inpainting seams, or very unnatural textures confined to specific regions). If you are unsure, prefer "original" with lower confidence.
 
-EXTREME SCRUTINY: Look for 0.01% artifacts. Even a tiny mismatch in edge lighting means "ai_modified".
+CONFIDENCE GUIDELINES:
+- 90-100: Multiple strong, specific artifacts that strongly indicate AI generation or AI edits.
+- 70-89: Some evidence, but not conclusive.
+- 50-69: Weak evidence / uncertain.
+- Below 50 is not allowed; if uncertain, return "original" with confidence 50-69.
 
 You MUST respond with valid JSON:
 {"classification":"original"|"ai_generated"|"ai_modified","confidence":0-100,"reasoning":"explanation","artifacts":["list"]}`
@@ -320,7 +324,7 @@ You MUST respond with valid JSON:
     const content = response.choices[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
     const classification = ["original", "ai_generated", "ai_modified"].includes(parsed.classification) ? parsed.classification : "original";
-    const confidence = Math.min(100, Math.max(0, Number(parsed.confidence) || 75));
+    const confidence = Math.min(100, Math.max(0, Number(parsed.confidence) || 60));
 
     return {
         result: classification as "original" | "ai_generated" | "ai_modified",
@@ -378,6 +382,14 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const noiseScore = calculateNoiseScore(noise);
     const artifactScore = calculateArtifactScore(artifacts);
 
+    // Technical authenticity score used to reduce false positives from LLM classification.
+    // Higher means more likely an authentic/original photo.
+    const technicalScore =
+        exifScore * 0.35 +
+        noiseScore * 0.2 +
+        artifactScore * 0.25 +
+        (1 - elaScore) * 0.2;
+
     let aiAnalysis;
     try {
         const safeImageData = await ensureOpenAILimit(imageData);
@@ -385,7 +397,6 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     } catch (error) {
         console.error("AI analysis failed, using technical fallback:", error);
         // ELA adds precision to technical analysis
-        const technicalScore = exifScore * 0.35 + noiseScore * 0.2 + artifactScore * 0.25 + (1 - elaScore) * 0.2;
         aiAnalysis = {
             result: technicalScore > 0.6 ? "original" : technicalScore < 0.4 ? "ai_generated" : "ai_modified",
             confidence: Math.round(Math.abs(technicalScore - 0.5) * 200),
@@ -411,6 +422,27 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             finalResult = "original";
             finalConfidence = Math.round(exifScore * 100);
         }
+    }
+
+    // Reduce false positives on PNG/no-EXIF uploads (common when photos are exported by apps)
+    // by allowing technical signals to override an LLM "ai_modified" call.
+    const technicalSuggestsOriginal =
+        technicalScore >= 0.67 &&
+        artifactScore >= 0.75 &&
+        elaScore < 0.55;
+
+    const sightEngineSuggestsOriginal =
+        !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
+
+    if (
+        finalResult === "ai_modified" &&
+        finalConfidence >= 85 &&
+        !exif.hasExif &&
+        stats.format.toUpperCase() === "PNG" &&
+        (technicalSuggestsOriginal || sightEngineSuggestsOriginal)
+    ) {
+        finalResult = "original";
+        finalConfidence = Math.max(60, Math.min(99, Math.round(technicalScore * 100)));
     }
 
     if (!exif.hasExif && aiAnalysis.result === "ai_generated") {
