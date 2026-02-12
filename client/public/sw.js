@@ -1,61 +1,41 @@
-const CACHE_NAME = 'imgcertifier-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/favicon.png',
-  '/manifest.json'
-];
+// Service worker kill switch.
+// We previously cached '/' (index.html) which can cause blank screens after deploys
+// when index.html references old hashed asset filenames.
+// This SW clears all caches and unregisters itself.
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    (async () => {
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        await self.registration.unregister();
+      } catch (e) {
+        // ignore
+      }
+
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of clientList) {
+        try {
+          client.navigate(client.url);
+        } catch (e) {
+          // ignore
+        }
+      }
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ error: 'Offline' }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      });
-    })
-  );
+  // Passthrough: do not cache or intercept.
+  return;
 });
