@@ -11,6 +11,7 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { isVideoAnalysisConfigured } from "./videoAnalysisClient";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { analyzeImageAdvanced } from "./services/analysisService";
 import { processVideoAnalysis } from "./services/videoService";
 import { appleService } from "./services/appleService";
@@ -88,6 +89,33 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/admin/reset-password", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { email, password } = req.body ?? {};
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "email and password are required" });
+      }
+
+      if (typeof password !== "string" || password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      const user = await storage.getUserByEmail(String(email));
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const hash = await bcrypt.hash(String(password), 10);
+      await storage.updateUser(user.id, { password: hash });
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      return res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
 
   // Get all analyses
   app.get("/api/analyses", async (req, res) => {
