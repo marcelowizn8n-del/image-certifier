@@ -61,6 +61,8 @@ async function buildAll() {
     ...Object.keys(pkg.devDependencies || {}),
   ];
   const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const forcedExternals = ["connect-pg-simple"];
+  const external = Array.from(new Set([...externals, ...forcedExternals]));
 
   await esbuild({
     entryPoints: ["server/index.ts"],
@@ -72,7 +74,7 @@ async function buildAll() {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
-    external: externals,
+    external,
     logLevel: "info",
   });
 }
