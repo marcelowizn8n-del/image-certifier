@@ -32,7 +32,13 @@ export function serveStatic(app: Express) {
   );
 
   // fall through to index.html if the file doesn't exist
-  app.use("/{*path}", (_req, res) => {
+  app.use("/{*path}", (req, res, next) => {
+    if (req.method !== "GET") return next();
+    if (req.path.startsWith("/api")) return next();
+
+    const accept = String(req.headers.accept || "");
+    if (!accept.includes("text/html")) return next();
+
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
