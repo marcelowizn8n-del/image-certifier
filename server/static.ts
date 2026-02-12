@@ -20,6 +20,14 @@ export function serveStatic(app: Express) {
           return;
         }
 
+        if (
+          filePath.endsWith(`${path.sep}sw.js`) ||
+          filePath.endsWith(`${path.sep}manifest.json`)
+        ) {
+          res.setHeader("Cache-Control", "no-store, max-age=0");
+          return;
+        }
+
         // Cache versioned build assets aggressively.
         if (filePath.includes(`${path.sep}assets${path.sep}`)) {
           res.setHeader(
