@@ -1,0 +1,25 @@
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store
+
+.dist
+build
+out
+coverage
+
+.DS_Store
+.idea
+.vscode
+
+.env
+.env.*
+
+.git
+.gitignore
+
+*.log
+
+# Optional: ignore local database dumps or uploads if any
+uploads
