@@ -174,6 +174,17 @@ export async function analyzeArtifacts(buffer: Buffer, stats: ImageStats): Promi
  */
 export async function analyzeELA(buffer: Buffer): Promise<number> {
     try {
+        const meta = await sharp(buffer).metadata();
+
+        // ELA is fundamentally a JPEG recompression technique. For PNG/WebP/HEIC,
+        // converting to JPEG and diffing against the original will often produce
+        // large differences that look like "manipulation" even for authentic photos.
+        // To avoid systematic false positives, only run ELA on JPEG inputs.
+        const format = String(meta.format || "").toLowerCase();
+        if (format !== "jpeg" && format !== "jpg") {
+            return 0;
+        }
+
         // Resave at 90% quality
         const resavedBuffer = await sharp(buffer)
             .jpeg({ quality: 90 })
@@ -382,13 +393,16 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const noiseScore = calculateNoiseScore(noise);
     const artifactScore = calculateArtifactScore(artifacts);
 
+    const isJpeg = stats.format.toUpperCase() === "JPEG" || stats.format.toUpperCase() === "JPG";
+    const effectiveElaScore = isJpeg ? elaScore : 0;
+
     // Technical authenticity score used to reduce false positives from LLM classification.
     // Higher means more likely an authentic/original photo.
     const technicalScore =
         exifScore * 0.35 +
         noiseScore * 0.2 +
         artifactScore * 0.25 +
-        (1 - elaScore) * 0.2;
+        (1 - effectiveElaScore) * 0.2;
 
     let aiAnalysis;
     try {
@@ -408,11 +422,11 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     let finalResult = aiAnalysis.result;
     let finalConfidence = aiAnalysis.confidence;
 
-    // Cross-verify AI result with ELA
-    if (elaScore > 0.6 && finalResult === "original") {
+    // Cross-verify AI result with ELA (JPEG only)
+    if (isJpeg && effectiveElaScore > 0.6 && finalResult === "original") {
         // High ELA difference but AI said original - highly likely modified
         finalResult = "ai_modified";
-        finalConfidence = Math.round(elaScore * 100);
+        finalConfidence = Math.round(effectiveElaScore * 100);
     }
 
     if (exifScore >= 0.5 && exif.cameraMake) {
