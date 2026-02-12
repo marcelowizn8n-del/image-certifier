@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 interface DebugScores {
   exif_score: number;
   noise_score: number;
+  artifact_score?: number;
+  ela_score?: number;
+  technical_score?: number;
   ai_confidence: number;
   realness_score: number;
   significant_artifacts: number;
@@ -68,6 +71,24 @@ export function DebugScoresCard({ debugScores }: DebugScoresCardProps) {
       description: "Sensor noise pattern analysis. Higher = more natural camera-like noise.",
       color: "bg-cyan-500",
       inverted: false,
+    },
+    {
+      label: "ELA (Error Level)",
+      value: debugScores.ela_score ?? 0,
+      icon: <Layers className="h-4 w-4 text-amber-500" />,
+      description: "Error Level Analysis. Lower = more consistent compression (more likely original). Higher can indicate edits or re-encoding artifacts.",
+      color: "bg-amber-500",
+      inverted: true,
+      showIfAvailable: debugScores.ela_score !== undefined,
+    },
+    {
+      label: "Technical Score",
+      value: debugScores.technical_score ?? 0,
+      icon: <Camera className="h-4 w-4 text-emerald-500" />,
+      description: "Combined technical authenticity score (EXIF/noise/artifacts/ELA). Higher = more likely an authentic/original photo.",
+      color: "bg-emerald-500",
+      inverted: false,
+      showIfAvailable: debugScores.technical_score !== undefined,
     },
   ];
 
