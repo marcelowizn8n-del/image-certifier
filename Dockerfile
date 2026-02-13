@@ -19,6 +19,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm install --no-save drizzle-kit@0.31.8
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/shared ./shared
 
 EXPOSE 5000
 CMD ["node", "dist/index.cjs"]
