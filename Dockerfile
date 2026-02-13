@@ -16,7 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm install --no-save drizzle-kit@0.31.8
 
 COPY --from=builder /app/dist ./dist
 
