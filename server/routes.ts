@@ -610,6 +610,49 @@ export async function registerRoutes(
         `
       );
 
+      if (!result.rows || result.rows.length === 0) {
+        try {
+          const { getUncachableStripeClient } = await import("./stripeClient");
+          const stripe = await getUncachableStripeClient();
+
+          const stripeProducts = await stripe.products.list({
+            active: true,
+            limit: 100,
+          });
+
+          const productsWithPrices = await Promise.all(
+            stripeProducts.data.map(async (p) => {
+              const prices = await stripe.prices.list({
+                active: true,
+                product: p.id,
+                limit: 100,
+              });
+
+              return {
+                id: p.id,
+                name: p.name,
+                description: p.description || "",
+                active: p.active,
+                metadata: (p.metadata || {}) as any,
+                prices: prices.data.map((pr) => ({
+                  id: pr.id,
+                  unit_amount: pr.unit_amount || 0,
+                  currency: pr.currency,
+                  recurring: pr.recurring
+                    ? { interval: pr.recurring.interval }
+                    : null,
+                  active: pr.active,
+                })),
+              };
+            })
+          );
+
+          return res.json({ data: productsWithPrices });
+        } catch (fallbackError) {
+          console.error("Error fetching products/prices from Stripe API:", fallbackError);
+        }
+      }
+
       // Group prices by product
       const productsMap = new Map();
       for (const row of result.rows as any[]) {
