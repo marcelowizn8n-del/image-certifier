@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Check, Sparkles, Crown, Building2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "sonner";
+import { useMemo, useState } from "react";
 
 interface Price {
   id: string;
@@ -28,6 +29,7 @@ interface Product {
 
 export default function Pricing() {
   const { t } = useLanguage();
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
 
   const { data: productsData, isLoading } = useQuery<{ data: Product[] }>({
     queryKey: ["/api/stripe/products-with-prices"],
@@ -110,12 +112,19 @@ export default function Pricing() {
 
   const products = productsData?.data || [];
 
-  // Sort products by price
-  const sortedProducts = [...products].sort((a, b) => {
-    const priceA = a.prices[0]?.unit_amount || 0;
-    const priceB = b.prices[0]?.unit_amount || 0;
-    return priceA - priceB;
-  });
+  const getPriceByInterval = (product: Product, interval: "month" | "year") => {
+    return product.prices.find((p) => p.recurring?.interval === interval) ?? null;
+  };
+
+  const intervalLabel = billingInterval === "year" ? "/ano" : "/mês";
+
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      const priceA = getPriceByInterval(a, billingInterval)?.unit_amount ?? 0;
+      const priceB = getPriceByInterval(b, billingInterval)?.unit_amount ?? 0;
+      return priceA - priceB;
+    });
+  }, [products, billingInterval]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -127,6 +136,27 @@ export default function Pricing() {
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Proteja-se contra fake news e imagens manipuladas com nossa tecnologia de detecção de IA
           </p>
+        </div>
+
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-md border bg-background p-1">
+            <Button
+              type="button"
+              variant={billingInterval === "month" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingInterval("month")}
+            >
+              Mensal
+            </Button>
+            <Button
+              type="button"
+              variant={billingInterval === "year" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingInterval("year")}
+            >
+              Anual
+            </Button>
+          </div>
         </div>
 
         {/* Free Plan */}
@@ -174,7 +204,7 @@ export default function Pricing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {sortedProducts.map((product) => {
               const tier = product.metadata?.tier;
-              const price = product.prices[0];
+              const price = getPriceByInterval(product, billingInterval);
               const isPopular = tier === 'premium';
 
               return (
@@ -201,7 +231,7 @@ export default function Pricing() {
                         <span className="text-4xl font-bold">
                           {formatPrice(price.unit_amount, price.currency)}
                         </span>
-                        <span className="text-muted-foreground">/mês</span>
+                        <span className="text-muted-foreground">{intervalLabel}</span>
                       </div>
                     )}
                     <ul className="text-sm space-y-3 text-left">

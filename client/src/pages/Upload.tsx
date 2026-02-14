@@ -312,11 +312,16 @@ export default function Upload() {
 
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 99) {
           clearInterval(progressInterval);
           return prev;
         }
-        return prev + Math.random() * 15;
+
+        if (prev >= 90) {
+          return Math.min(99, prev + Math.random() * 1.2);
+        }
+
+        return Math.min(90, prev + Math.random() * 15);
       });
     }, 500);
 
@@ -339,11 +344,16 @@ export default function Upload() {
 
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 99) {
           clearInterval(progressInterval);
           return prev;
         }
-        return prev + Math.random() * 15;
+
+        if (prev >= 90) {
+          return Math.min(99, prev + Math.random() * 1.2);
+        }
+
+        return Math.min(90, prev + Math.random() * 15);
       });
     }, 500);
 

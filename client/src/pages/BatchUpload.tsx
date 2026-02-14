@@ -14,6 +14,8 @@ import {
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { apiRequest } from "@/lib/queryClient";
+import { toast } from "sonner";
 
 interface BatchFile {
   id: string;
@@ -29,6 +31,91 @@ export default function BatchUpload() {
   const [files, setFiles] = useState<BatchFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const { t } = useLanguage();
+
+  const fileToDataUrl = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(t('batch.readFileError')));
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          reject(new Error(t('batch.readFileError')));
+          return;
+        }
+        resolve(result);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const startBatchAnalysis = async () => {
+    if (files.length === 0 || isProcessing) return;
+
+    setIsProcessing(true);
+    setProgress(0);
+
+    const total = files.length;
+    let completed = 0;
+
+    try {
+      for (const current of files) {
+        setFiles((prev) =>
+          prev.map((f) => (f.id === current.id ? { ...f, status: "analyzing", error: undefined } : f))
+        );
+
+        try {
+          const imageData = await fileToDataUrl(current.file);
+          const response = await apiRequest("POST", "/api/analyze", {
+            imageData,
+            filename: current.file.name,
+          });
+          const data = (await response.json()) as any;
+
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === current.id
+                ? {
+                    ...f,
+                    status: "complete",
+                    result: data?.result,
+                    confidence: data?.confidence,
+                  }
+                : f
+            )
+          );
+        } catch (err: any) {
+          const message = err?.error === "FREE_LIMIT_EXCEEDED"
+            ? t('batch.freeLimitMessage')
+            : err?.message || t('batch.analyzeFailed');
+
+          setFiles((prev) =>
+            prev.map((f) => (f.id === current.id ? { ...f, status: "error", error: message } : f))
+          );
+
+          if (err?.error === "FREE_LIMIT_EXCEEDED") {
+            toast.error(t('batch.limitReachedTitle'), {
+              description: t('batch.limitReachedDesc'),
+              action: {
+                label: t('batch.viewPlans'),
+                onClick: () => (window.location.href = "/auth?next=/pricing"),
+              },
+            });
+            break;
+          }
+        } finally {
+          completed += 1;
+          setProgress((completed / total) * 100);
+        }
+      }
+
+      toast.success(t('batch.doneTitle'), {
+        description: t('batch.doneDesc'),
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -61,13 +148,13 @@ export default function BatchUpload() {
   const getResultBadge = (result?: string) => {
     switch (result) {
       case "original":
-        return <Badge className="bg-green-500/10 text-green-500 text-xs">Original</Badge>;
+        return <Badge className="bg-green-500/10 text-green-500 text-xs">{t('result.original')}</Badge>;
       case "ai_generated":
-        return <Badge className="bg-red-500/10 text-red-500 text-xs">AI Generated</Badge>;
+        return <Badge className="bg-red-500/10 text-red-500 text-xs">{t('result.ai_generated')}</Badge>;
       case "ai_modified":
-        return <Badge className="bg-orange-500/10 text-orange-500 text-xs">AI Modified</Badge>;
+        return <Badge className="bg-orange-500/10 text-orange-500 text-xs">{t('result.ai_modified')}</Badge>;
       default:
-        return <Badge className="bg-yellow-500/10 text-yellow-500 text-xs">Uncertain</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-500 text-xs">{t('result.uncertain')}</Badge>;
     }
   };
 
@@ -81,10 +168,10 @@ export default function BatchUpload() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
-              Batch Upload
+              {t('batch.title')}
             </CardTitle>
             <CardDescription>
-              Select multiple images to analyze them all at once
+              {t('batch.subtitle')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -102,10 +189,10 @@ export default function BatchUpload() {
               <label htmlFor="batch-upload" className="cursor-pointer">
                 <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-foreground font-medium mb-2">
-                  Click to select images
+                  {t('batch.clickToSelect')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  or drag and drop multiple files
+                  {t('batch.orDragDrop')}
                 </p>
               </label>
             </div>
@@ -115,7 +202,7 @@ export default function BatchUpload() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">
-                    {files.length} {files.length === 1 ? "file" : "files"} selected
+                    {files.length === 1 ? t('batch.filesSelected_one') : t('batch.filesSelected_many')}
                   </h3>
                   <Button
                     variant="outline"
@@ -123,14 +210,14 @@ export default function BatchUpload() {
                     onClick={() => setFiles([])}
                     data-testid="button-clear-all"
                   >
-                    Clear All
+                    {t('batch.clearAll')}
                   </Button>
                 </div>
 
                 {isProcessing && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span>Processing...</span>
+                      <span>{t('batch.processing')}</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
                     <Progress value={progress} className="h-2" />
@@ -164,12 +251,12 @@ export default function BatchUpload() {
                         )}
                         {item.status === "analyzing" && (
                           <Badge variant="secondary" className="text-xs mt-1">
-                            Analyzing...
+                            {t('batch.analyzing')}
                           </Badge>
                         )}
                         {item.status === "error" && (
                           <Badge variant="destructive" className="text-xs mt-1">
-                            Error
+                            {t('batch.error')}
                           </Badge>
                         )}
                       </div>
@@ -191,9 +278,14 @@ export default function BatchUpload() {
                   className="w-full"
                   size="lg"
                   disabled={files.length === 0 || isProcessing}
+                  onClick={startBatchAnalysis}
                   data-testid="button-start-batch"
                 >
-                  {isProcessing ? "Processing..." : `Analyze ${files.length} Images`}
+                  {isProcessing
+                    ? t('batch.processing')
+                    : files.length === 1
+                      ? t('batch.analyzeCount_one')
+                      : t('batch.analyzeCount_many')}
                 </Button>
               </div>
             )}
