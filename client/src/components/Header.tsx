@@ -31,7 +31,7 @@ export function Header() {
           <img
             src={logoPath}
             alt="Image Certifier"
-            className="h-9 w-auto max-w-[220px] object-contain"
+            className="h-10 w-auto max-w-[280px] object-contain"
             data-testid="img-logo"
           />
         </Link>
