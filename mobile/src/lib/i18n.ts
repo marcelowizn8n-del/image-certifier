@@ -6,7 +6,7 @@ const resources = {
   pt: {
     translation: {
       app: { name: 'Image Certifier', tagline: 'Verificação de Autenticidade Digital' },
-      tabs: { upload: 'Analisar', history: 'Histórico', settings: 'Config' },
+      tabs: { upload: 'Analisar', history: 'Histórico', subscribe: 'Premium', settings: 'Config' },
       upload: {
         title: 'Análise de Autenticidade',
         subtitle: 'Verifique a integridade digital de mídias',
@@ -53,6 +53,29 @@ const resources = {
         terms: 'Termos de Uso',
         version: 'Versão',
       },
+      subscribe: {
+        title: 'Assine o Premium',
+        subtitle: 'Desbloqueie análises ilimitadas e recursos avançados',
+        alreadyPremium: 'Você é Premium!',
+        enjoyFeatures: 'Aproveite todos os recursos sem limites.',
+        popular: 'Popular',
+        analysesPerMonth: 'análises/mês',
+        month: 'mês',
+        processing: 'Processando compra...',
+        restore: 'Restaurar compras',
+        legal: 'A assinatura será cobrada na sua conta Apple ID ou Google Play. Renovação automática a menos que seja cancelada 24h antes do fim do período atual. Gerenciar assinatura nas configurações do dispositivo.',
+        features: {
+          unlimitedAnalyses: 'Análises ilimitadas de imagens',
+          priorityProcessing: 'Processamento prioritário',
+          advancedDetection: 'Detecção avançada de IA',
+          exportReports: 'Exportar relatórios detalhados',
+        },
+        plans: {
+          basic: { name: 'Básico' },
+          premium: { name: 'Premium' },
+          enterprise: { name: 'Enterprise' },
+        },
+      },
       common: {
         loading: 'Carregando...',
         error: 'Erro',
@@ -67,7 +90,7 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Image Certifier', tagline: 'Digital Authenticity Verification' },
-      tabs: { upload: 'Analyze', history: 'History', settings: 'Settings' },
+      tabs: { upload: 'Analyze', history: 'History', subscribe: 'Premium', settings: 'Settings' },
       upload: {
         title: 'Authenticity Analysis',
         subtitle: 'Verify digital integrity of media',
@@ -114,6 +137,29 @@ const resources = {
         terms: 'Terms of Use',
         version: 'Version',
       },
+      subscribe: {
+        title: 'Go Premium',
+        subtitle: 'Unlock unlimited analyses and advanced features',
+        alreadyPremium: 'You are Premium!',
+        enjoyFeatures: 'Enjoy all features without limits.',
+        popular: 'Popular',
+        analysesPerMonth: 'analyses/mo',
+        month: 'month',
+        processing: 'Processing purchase...',
+        restore: 'Restore purchases',
+        legal: 'Subscription will be charged to your Apple ID or Google Play account. Auto-renews unless cancelled at least 24 hours before the end of the current period. Manage subscription in device settings.',
+        features: {
+          unlimitedAnalyses: 'Unlimited image analyses',
+          priorityProcessing: 'Priority processing',
+          advancedDetection: 'Advanced AI detection',
+          exportReports: 'Export detailed reports',
+        },
+        plans: {
+          basic: { name: 'Basic' },
+          premium: { name: 'Premium' },
+          enterprise: { name: 'Enterprise' },
+        },
+      },
       common: {
         loading: 'Loading...',
         error: 'Error',
@@ -128,7 +174,7 @@ const resources = {
   es: {
     translation: {
       app: { name: 'Image Certifier', tagline: 'Verificación de Autenticidad de Imágenes' },
-      tabs: { upload: 'Analizar', history: 'Historial', settings: 'Ajustes' },
+      tabs: { upload: 'Analizar', history: 'Historial', subscribe: 'Premium', settings: 'Ajustes' },
       upload: {
         title: 'Análisis de Imagen',
         subtitle: 'Sube una imagen para verificar autenticidad',
@@ -175,6 +221,29 @@ const resources = {
         terms: 'Términos de Uso',
         version: 'Versión',
       },
+      subscribe: {
+        title: 'Hazte Premium',
+        subtitle: 'Desbloquea análisis ilimitados y funciones avanzadas',
+        alreadyPremium: '¡Eres Premium!',
+        enjoyFeatures: 'Disfruta de todas las funciones sin límites.',
+        popular: 'Popular',
+        analysesPerMonth: 'análisis/mes',
+        month: 'mes',
+        processing: 'Procesando compra...',
+        restore: 'Restaurar compras',
+        legal: 'La suscripción se cobrará en tu cuenta Apple ID o Google Play. Se renueva automáticamente a menos que se cancele 24h antes del final del período actual.',
+        features: {
+          unlimitedAnalyses: 'Análisis ilimitados de imágenes',
+          priorityProcessing: 'Procesamiento prioritario',
+          advancedDetection: 'Detección avanzada de IA',
+          exportReports: 'Exportar informes detallados',
+        },
+        plans: {
+          basic: { name: 'Básico' },
+          premium: { name: 'Premium' },
+          enterprise: { name: 'Enterprise' },
+        },
+      },
       common: {
         loading: 'Cargando...',
         error: 'Error',
@@ -189,7 +258,7 @@ const resources = {
   fr: {
     translation: {
       app: { name: 'Image Certifier', tagline: "Vérification d'Authenticité d'Images" },
-      tabs: { upload: 'Analyser', history: 'Historique', settings: 'Paramètres' },
+      tabs: { upload: 'Analyser', history: 'Historique', subscribe: 'Premium', settings: 'Paramètres' },
       upload: {
         title: "Analyse d'Image",
         subtitle: "Téléchargez une image pour vérifier l'authenticité",
@@ -236,6 +305,29 @@ const resources = {
         terms: "Conditions d'Utilisation",
         version: 'Version',
       },
+      subscribe: {
+        title: 'Passer Premium',
+        subtitle: 'Débloquez des analyses illimitées et des fonctionnalités avancées',
+        alreadyPremium: 'Vous êtes Premium !',
+        enjoyFeatures: 'Profitez de toutes les fonctionnalités sans limites.',
+        popular: 'Populaire',
+        analysesPerMonth: 'analyses/mois',
+        month: 'mois',
+        processing: 'Traitement de l\'achat...',
+        restore: 'Restaurer les achats',
+        legal: 'L\'abonnement sera facturé sur votre compte Apple ID ou Google Play. Renouvellement automatique sauf annulation 24h avant la fin de la période en cours.',
+        features: {
+          unlimitedAnalyses: 'Analyses d\'images illimitées',
+          priorityProcessing: 'Traitement prioritaire',
+          advancedDetection: 'Détection IA avancée',
+          exportReports: 'Exporter des rapports détaillés',
+        },
+        plans: {
+          basic: { name: 'Basique' },
+          premium: { name: 'Premium' },
+          enterprise: { name: 'Enterprise' },
+        },
+      },
       common: {
         loading: 'Chargement...',
         error: 'Erreur',
@@ -250,7 +342,7 @@ const resources = {
   de: {
     translation: {
       app: { name: 'Image Certifier', tagline: 'Bildauthentizitätsprüfung' },
-      tabs: { upload: 'Analysieren', history: 'Verlauf', settings: 'Einstellungen' },
+      tabs: { upload: 'Analysieren', history: 'Verlauf', subscribe: 'Premium', settings: 'Einstellungen' },
       upload: {
         title: 'Bildanalyse',
         subtitle: 'Laden Sie ein Bild hoch, um die Authentizität zu überprüfen',
@@ -297,6 +389,29 @@ const resources = {
         terms: 'Nutzungsbedingungen',
         version: 'Version',
       },
+      subscribe: {
+        title: 'Premium werden',
+        subtitle: 'Unbegrenzte Analysen und erweiterte Funktionen freischalten',
+        alreadyPremium: 'Sie sind Premium!',
+        enjoyFeatures: 'Genießen Sie alle Funktionen ohne Einschränkungen.',
+        popular: 'Beliebt',
+        analysesPerMonth: 'Analysen/Monat',
+        month: 'Monat',
+        processing: 'Kauf wird verarbeitet...',
+        restore: 'Käufe wiederherstellen',
+        legal: 'Das Abonnement wird Ihrem Apple ID- oder Google Play-Konto belastet. Automatische Verlängerung, sofern nicht mindestens 24 Stunden vor Ende des aktuellen Zeitraums gekündigt.',
+        features: {
+          unlimitedAnalyses: 'Unbegrenzte Bildanalysen',
+          priorityProcessing: 'Priorisierte Verarbeitung',
+          advancedDetection: 'Erweiterte KI-Erkennung',
+          exportReports: 'Detaillierte Berichte exportieren',
+        },
+        plans: {
+          basic: { name: 'Basis' },
+          premium: { name: 'Premium' },
+          enterprise: { name: 'Enterprise' },
+        },
+      },
       common: {
         loading: 'Laden...',
         error: 'Fehler',
@@ -311,7 +426,7 @@ const resources = {
   zh: {
     translation: {
       app: { name: 'Image Certifier', tagline: '图像真实性验证' },
-      tabs: { upload: '分析', history: '历史', settings: '设置' },
+      tabs: { upload: '分析', history: '历史', subscribe: '高级版', settings: '设置' },
       upload: {
         title: '图像分析',
         subtitle: '上传图像以验证真实性',
@@ -357,6 +472,29 @@ const resources = {
         privacy: '隐私',
         terms: '使用条款',
         version: '版本',
+      },
+      subscribe: {
+        title: '升级高级版',
+        subtitle: '解锁无限分析和高级功能',
+        alreadyPremium: '您已是高级会员！',
+        enjoyFeatures: '畅享所有功能，无任何限制。',
+        popular: '热门',
+        analysesPerMonth: '次分析/月',
+        month: '月',
+        processing: '正在处理购买...',
+        restore: '恢复购买',
+        legal: '订阅将从您的 Apple ID 或 Google Play 账户中扣费。除非在当前周期结束前至少24小时取消，否则将自动续订。',
+        features: {
+          unlimitedAnalyses: '无限图像分析',
+          priorityProcessing: '优先处理',
+          advancedDetection: '高级AI检测',
+          exportReports: '导出详细报告',
+        },
+        plans: {
+          basic: { name: '基础版' },
+          premium: { name: '高级版' },
+          enterprise: { name: '企业版' },
+        },
       },
       common: {
         loading: '加载中...',

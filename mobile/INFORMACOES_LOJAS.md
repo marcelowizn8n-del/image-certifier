@@ -212,7 +212,7 @@ Desenvolvido por MFA Developer.
 | O app contém conteúdo sexual? | Não |
 | O app promove substâncias controladas? | Não |
 | O app permite conteúdo gerado por usuários visível a outros? | Não |
-| O app permite compras digitais? | Não |
+| O app permite compras digitais? | Sim (assinatura Premium via IAP) |
 | O app compartilha localização? | Não |
 
 **Classificação resultante:** Livre para todas as idades

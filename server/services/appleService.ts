@@ -16,27 +16,58 @@ export class AppleService {
             throw new Error(`Apple receipt verification failed with status: ${response.status}`);
         }
 
-        // Process the receipt (e.g., check for active subscription)
-        const latestReceiptInfo = response.latest_receipt_info || response.receipt.in_app;
+        // Process the receipt — check for active subscription
+        const latestReceiptInfo = response.latest_receipt_info || response.receipt?.in_app;
         if (!latestReceiptInfo || latestReceiptInfo.length === 0) {
             throw new Error('No purchase info found in receipt');
         }
 
-        // For simplicity, we'll mark the user as premium if we have a valid receipt
+        // Find the most recent transaction and check expiry
+        const sortedReceipts = [...latestReceiptInfo].sort(
+            (a: any, b: any) =>
+                parseInt(b.expires_date_ms || b.purchase_date_ms || '0') -
+                parseInt(a.expires_date_ms || a.purchase_date_ms || '0')
+        );
+        const latestTransaction = sortedReceipts[0];
+
+        // For subscriptions, check if it's still active
+        const expiresDateMs = parseInt(latestTransaction.expires_date_ms || '0');
+        const isActive = expiresDateMs === 0 || expiresDateMs > Date.now();
+
+        if (!isActive) {
+            // Subscription expired — revoke premium
+            if (userId) {
+                await storage.updateUser(userId, { isPremium: false });
+            }
+            throw new Error('Subscription has expired');
+        }
+
+        // Active subscription — mark user as premium
         if (userId) {
             await storage.updateUser(userId, { isPremium: true });
         }
 
-        return response;
+        return {
+            ...response,
+            subscriptionActive: isActive,
+            expiresDate: expiresDateMs ? new Date(expiresDateMs).toISOString() : null,
+            productId: latestTransaction.product_id,
+        };
     }
 
     private async callAppleVerify(receiptData: string, url: string) {
+        const body: Record<string, string> = {
+            'receipt-data': receiptData,
+        };
+
+        // Required for auto-renewable subscriptions
+        if (process.env.APPLE_SHARED_SECRET) {
+            body['password'] = process.env.APPLE_SHARED_SECRET;
+        }
+
         const response = await fetch(url, {
             method: 'POST',
-            body: JSON.stringify({
-                'receipt-data': receiptData,
-                // 'password': process.env.APPLE_SHARED_SECRET // Required for auto-renewable subscriptions
-            }),
+            body: JSON.stringify(body),
             headers: { 'Content-Type': 'application/json' },
         });
 

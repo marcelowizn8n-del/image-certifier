@@ -16,6 +16,7 @@ import bcrypt from "bcryptjs";
 import { analyzeImageAdvanced } from "./services/analysisService";
 import { processVideoAnalysis } from "./services/videoService";
 import { appleService } from "./services/appleService";
+import { googlePlayService } from "./services/googlePlayService";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.user?.id) {
@@ -791,6 +792,27 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error verifying Apple receipt:", error);
       res.status(500).json({ message: error.message || "Failed to verify receipt" });
+    }
+  });
+
+  // Google Play Billing verification
+  app.post("/api/google/verify-purchase", async (req, res) => {
+    try {
+      const { packageName, productId, purchaseToken, purchaseType } = req.body;
+      if (!packageName || !productId || !purchaseToken) {
+        return res.status(400).json({ message: "packageName, productId, and purchaseToken are required" });
+      }
+
+      let result;
+      if (purchaseType === 'product') {
+        result = await googlePlayService.verifyProduct(packageName, productId, purchaseToken, req.user?.id);
+      } else {
+        result = await googlePlayService.verifySubscription(packageName, productId, purchaseToken, req.user?.id);
+      }
+      res.json({ success: true, result });
+    } catch (error: any) {
+      console.error("Error verifying Google Play purchase:", error);
+      res.status(500).json({ message: error.message || "Failed to verify purchase" });
     }
   });
 

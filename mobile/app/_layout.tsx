@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { LanguageProvider } from '../src/contexts/LanguageContext';
+import { IAPProvider } from '../src/contexts/IAPContext';
 import '../src/lib/i18n';
 
 function RootLayoutNav() {
@@ -26,7 +27,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <RootLayoutNav />
+        <IAPProvider>
+          <RootLayoutNav />
+        </IAPProvider>
       </LanguageProvider>
     </ThemeProvider>
   );
