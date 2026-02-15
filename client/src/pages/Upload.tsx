@@ -577,11 +577,11 @@ export default function Upload() {
                     {t('upload.file')}
                   </TabsTrigger>
                   <TabsTrigger value="url" className="flex items-center gap-2" data-testid="tab-url">
-                    <LinkIcon className="h-4 w-4" />
+                    <Link2 className="h-4 w-4" />
                     {t('upload.url')}
                   </TabsTrigger>
                   <TabsTrigger value="camera" className="flex items-center gap-2" data-testid="tab-camera">
-                    <CameraIcon className="h-4 w-4" />
+                    <Camera className="h-4 w-4" />
                     {t('upload.camera')}
                   </TabsTrigger>
                 </TabsList>
