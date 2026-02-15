@@ -2,13 +2,17 @@ import { Link, useLocation } from "wouter";
 import { History, Layers, Settings, Upload, CreditCard, Video, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import logoPath from "@assets/logo.png";
+import logoLightPath from "@assets/logo-light.png";
+import logoDarkPath from "@assets/logo-dark.png";
 
 export function Header() {
   const [location] = useLocation();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const logoPath = theme === "dark" ? logoDarkPath : logoLightPath;
 
   const navItems = [
     { path: "/", label: t('nav.upload'), icon: Upload },

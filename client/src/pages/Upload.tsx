@@ -128,8 +128,8 @@ export default function Upload() {
       setResult(data);
       setIsAnalyzing(false);
       setProgress(100);
-      toast.success("Analysis Complete", {
-        description: "Your image has been analyzed successfully.",
+      toast.success(t('upload.analysisComplete'), {
+        description: t('upload.analysisSuccess'),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/analyses"] });
       if (preview) {
@@ -141,18 +141,18 @@ export default function Upload() {
       setProgress(0);
 
       if (error.error === 'FREE_LIMIT_EXCEEDED') {
-        setError("Limite gratuito atingido! Assine um plano para continuar.");
-        toast.error("Limite Gratuito Atingido", {
-          description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
+        setError(t('upload.freeLimitError'));
+        toast.error(t('upload.freeLimitTitle'), {
+          description: t('upload.freeLimitDesc'),
           action: {
-            label: "Ver Planos",
+            label: t('upload.viewPlans'),
             onClick: () => window.location.href = "/auth?next=/pricing",
           },
         });
       } else {
         setError(error.message);
-        toast.error("Analysis Failed", {
-          description: error.message || "Failed to analyze image",
+        toast.error(t('upload.analysisFailed'), {
+          description: error.message || t('upload.analyzeFailedDesc'),
         });
       }
     },
@@ -167,8 +167,8 @@ export default function Upload() {
       setResult(data);
       setIsAnalyzing(false);
       setProgress(100);
-      toast.success("Analysis Complete", {
-        description: "Your image has been analyzed successfully.",
+      toast.success(t('upload.analysisComplete'), {
+        description: t('upload.analysisSuccess'),
       });
       if (imageUrl) {
         try {
@@ -192,24 +192,24 @@ export default function Upload() {
       setProgress(0);
 
       if (error.error === 'FREE_LIMIT_EXCEEDED') {
-        setError("Limite gratuito atingido! Assine um plano para continuar.");
-        toast.error("Limite Gratuito Atingido", {
-          description: "Você usou suas 10 análises gratuitas. Assine para continuar.",
+        setError(t('upload.freeLimitError'));
+        toast.error(t('upload.freeLimitTitle'), {
+          description: t('upload.freeLimitDesc'),
           action: {
-            label: "Ver Planos",
+            label: t('upload.viewPlans'),
             onClick: () => window.location.href = "/auth?next=/pricing",
           },
         });
       } else if (error.error === 'INSTAGRAM_NOT_SUPPORTED') {
-        setError("Links do Instagram não são suportados. Salve a imagem e faça upload pelo arquivo.");
-        toast.error("Instagram não suportado", {
-          description: "Salve a imagem do Instagram e use a opção 'Arquivo' para upload.",
+        setError(t('upload.instagramLinkError'));
+        toast.error(t('upload.instagramError'), {
+          description: t('upload.instagramErrorDesc'),
           duration: 8000,
         });
       } else {
         setError(error.message);
-        toast.error("Analysis Failed", {
-          description: error.message || "Failed to analyze image from URL",
+        toast.error(t('upload.analysisFailed'), {
+          description: error.message || t('upload.analyzeFailedUrlDesc'),
         });
       }
     },
@@ -221,10 +221,10 @@ export default function Upload() {
     const isValidExtension = ALLOWED_EXTENSIONS.includes(fileExtension);
 
     if (!isValidType && !isValidExtension) {
-      return `Invalid file type. Allowed: JPEG, PNG, WebP, HEIC`;
+      return t('upload.invalidFileType');
     }
     if (file.size > MAX_FILE_SIZE) {
-      return `File too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
+      return `${t('upload.fileTooLarge')} ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
     }
     return null;
   };
@@ -233,7 +233,7 @@ export default function Upload() {
     const validationError = validateFile(selectedFile);
     if (validationError) {
       setError(validationError);
-      toast.error("Invalid File", {
+      toast.error(t('upload.invalidFile'), {
         description: validationError,
       });
       return;
@@ -248,7 +248,7 @@ export default function Upload() {
 
     if (isHeic) {
       try {
-        toast.info("Converting HEIC...", { description: "Please wait while we convert your image" });
+        toast.info(t('upload.convertingHeic'), { description: t('upload.convertingHeicDesc') });
         const convertedBlob = await heic2any({
           blob: selectedFile,
           toType: "image/jpeg",
@@ -264,11 +264,11 @@ export default function Upload() {
           setPreview(e.target?.result as string);
         };
         reader.readAsDataURL(convertedFile);
-        toast.success("HEIC converted", { description: "Image ready for analysis" });
+        toast.success(t('upload.heicConverted'), { description: t('upload.heicConvertedDesc') });
       } catch (err) {
         console.error("HEIC conversion error:", err);
-        setError("Failed to convert HEIC image. Please try a different format.");
-        toast.error("Conversion Failed", { description: "Could not convert HEIC image" });
+        setError(t('upload.heicConvertError'));
+        toast.error(t('upload.heicConvertFailed'), { description: t('upload.heicConvertFailedDesc') });
       }
     } else {
       setFile(selectedFile);
@@ -402,7 +402,7 @@ export default function Upload() {
     } catch (err) {
       console.error("Camera error:", err);
       setCameraLoading(false);
-      setCameraError("Unable to access camera. Please check permissions.");
+      setCameraError(t('upload.cameraError'));
     }
   };
 
@@ -413,7 +413,7 @@ export default function Upload() {
         setNeedsUserGesture(false);
       } catch (e) {
         console.error("Manual play failed:", e);
-        setCameraError("Could not start video. Please try again.");
+        setCameraError(t('upload.cameraPlayFailed'));
       }
     }
   };
@@ -469,13 +469,13 @@ export default function Upload() {
     if (!result) return "";
     switch (result.result) {
       case "original":
-        return "Original Image";
+        return t('result.originalImage');
       case "ai_generated":
-        return "AI Generated";
+        return t('result.aiGeneratedResult');
       case "ai_modified":
-        return "AI Modified";
+        return t('result.aiModifiedResult');
       default:
-        return "Uncertain";
+        return t('result.uncertainResult');
     }
   };
 
@@ -530,8 +530,8 @@ export default function Upload() {
         description: t('download.description') || "Image with certification seal downloaded successfully.",
       });
     } catch (err) {
-      toast.error(t('download.error') || "Download Failed", {
-        description: "Failed to apply watermark to image.",
+      toast.error(t('download.error'), {
+        description: t('upload.watermarkFailed'),
       });
     } finally {
       setIsDownloading(false);
@@ -549,12 +549,12 @@ export default function Upload() {
         <div className="container py-8">
           {/* Hero Section */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-4">
-              <Sparkles className="h-4 w-4" />
-              <span>94.2% Detection Accuracy</span>
-            </div>
+            <Badge variant="secondary" className="mb-4 bg-primary/10 text-primary border-primary/20">
+              {t('upload.heroAccuracy')}
+            </Badge>
+            <h1 className="text-3xl font-bold tracking-tight mb-3">{t('upload.title')}</h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Upload an image to detect if it's AI-generated or real, and analyze any manipulations.
+              {t('upload.heroDesc')}
             </p>
           </div>
 
@@ -563,10 +563,10 @@ export default function Upload() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <UploadIcon className="h-5 w-5 text-primary" />
-                Upload Image
+                {t('upload.uploadImage')}
               </CardTitle>
               <CardDescription>
-                Supported formats: JPEG, PNG, WebP, HEIC (max 50MB)
+                {t('upload.supportedFormats')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -574,15 +574,15 @@ export default function Upload() {
                 <TabsList className="grid w-full grid-cols-3 mb-6">
                   <TabsTrigger value="file" className="gap-2" data-testid="tab-file">
                     <FileImage className="h-4 w-4" />
-                    File
+                    {t('upload.file')}
                   </TabsTrigger>
-                  <TabsTrigger value="url" className="gap-2" data-testid="tab-url">
-                    <Link2 className="h-4 w-4" />
-                    URL
+                  <TabsTrigger value="url" className="flex items-center gap-2" data-testid="tab-url">
+                    <LinkIcon className="h-4 w-4" />
+                    {t('upload.url')}
                   </TabsTrigger>
-                  <TabsTrigger value="camera" className="gap-2" data-testid="tab-camera">
-                    <Camera className="h-4 w-4" />
-                    Camera
+                  <TabsTrigger value="camera" className="flex items-center gap-2" data-testid="tab-camera">
+                    <CameraIcon className="h-4 w-4" />
+                    {t('upload.camera')}
                   </TabsTrigger>
                 </TabsList>
 
@@ -609,10 +609,10 @@ export default function Upload() {
                       />
                       <FileImage className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-foreground font-medium mb-2">
-                        Drag and drop your image here
+                        {t('upload.dropzone')}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        or click to browse
+                        {t('upload.clickToBrowse')}
                       </p>
                     </div>
                   ) : (
@@ -630,7 +630,7 @@ export default function Upload() {
                           {file?.name}
                         </p>
                         <Button variant="ghost" size="sm" onClick={resetAnalysis} data-testid="button-reset">
-                          Change Image
+                          {t('upload.changeImage')}
                         </Button>
                       </div>
                     </div>
@@ -670,8 +670,8 @@ export default function Upload() {
                               <svg className="w-12 h-12 mx-auto mb-2 text-red-500" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                               </svg>
-                              <p className="text-sm">YouTube video detected</p>
-                              <p className="text-xs">Click "Analyze Image" to analyze the thumbnail</p>
+                              <p className="text-sm">{t('upload.youtubeDetected')}</p>
+                              <p className="text-xs">{t('upload.youtubeAnalyze')}</p>
                             </div>
                           </div>
                         ) : (
@@ -685,7 +685,7 @@ export default function Upload() {
                               if (isYouTubeUrl) {
                                 setYoutubeImageError(true);
                               } else {
-                                setError("Failed to load image from URL");
+                                setError(t('upload.loadImageFailed'));
                               }
                             }}
                             onLoad={() => {
@@ -714,7 +714,7 @@ export default function Upload() {
                       <div className="text-center py-8">
                         <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                         <Button onClick={startCamera} disabled={cameraLoading} data-testid="button-start-camera">
-                          {cameraLoading ? "Starting..." : "Start Camera"}
+                          {cameraLoading ? t('upload.startingCamera') : t('upload.startCamera')}
                         </Button>
                       </div>
                     ) : isCameraActive ? (
@@ -731,17 +731,17 @@ export default function Upload() {
                           {needsUserGesture && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                               <Button onClick={playVideo} size="lg" data-testid="button-tap-to-start">
-                                Tap to Start Camera
+                                {t('upload.tapToStart')}
                               </Button>
                             </div>
                           )}
                         </div>
                         <div className="flex justify-center gap-2">
                           <Button onClick={capturePhoto} disabled={needsUserGesture} data-testid="button-capture">
-                            Capture Photo
+                            {t('upload.capturePhoto')}
                           </Button>
                           <Button variant="outline" onClick={stopCamera} data-testid="button-stop-camera">
-                            Cancel
+                            {t('upload.cancel')}
                           </Button>
                         </div>
                       </div>
@@ -756,7 +756,7 @@ export default function Upload() {
                         </div>
                         <div className="flex justify-center">
                           <Button variant="ghost" onClick={resetAnalysis}>
-                            Retake Photo
+                            {t('upload.retakePhoto')}
                           </Button>
                         </div>
                       </div>
@@ -783,12 +783,12 @@ export default function Upload() {
                 {isAnalyzing ? (
                   <>
                     <span className="animate-spin mr-2">⏳</span>
-                    Analyzing...
+                    {t('upload.analyzing')}
                   </>
                 ) : (
                   <>
                     <UploadIcon className="h-4 w-4 mr-2" />
-                    Analyze Image
+                    {t('upload.analyze')}
                   </>
                 )}
               </Button>
@@ -868,7 +868,7 @@ export default function Upload() {
                         {getResultText()}
                       </CardTitle>
                       <CardDescription>
-                        Confidence: {result.confidence}%
+                        {t('result.confidence')}: {result.confidence}%
                       </CardDescription>
                     </div>
                   </div>
@@ -876,13 +876,13 @@ export default function Upload() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-2">Confidence Level</p>
+                      <p className="text-sm text-muted-foreground mb-2">{t('result.confidenceLevel')}</p>
                       <Progress value={result.confidence} className="h-3" />
                     </div>
 
                     {result.artifacts && (
                       <div>
-                        <p className="text-sm text-muted-foreground mb-2">Detected Artifacts</p>
+                        <p className="text-sm text-muted-foreground mb-2">{t('result.detectedArtifacts')}</p>
                         <div className="flex flex-wrap gap-2">
                           {Object.entries(result.artifacts).map(([key, value]) => (
                             value && (
@@ -897,23 +897,23 @@ export default function Upload() {
 
                     {result.metadata && (
                       <div>
-                        <p className="text-sm text-muted-foreground mb-2">Image Metadata</p>
+                        <p className="text-sm text-muted-foreground mb-2">{t('result.imageMetadata')}</p>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Dimensions:</span>
+                            <span className="text-muted-foreground">{t('result.dimensions')}:</span>
                             <span>{result.metadata.width} x {result.metadata.height}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Format:</span>
+                            <span className="text-muted-foreground">{t('result.format')}:</span>
                             <span>{result.metadata.format}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Has EXIF:</span>
-                            <span>{result.metadata.hasExif ? "Yes" : "No"}</span>
+                            <span className="text-muted-foreground">{t('result.hasExif')}:</span>
+                            <span>{result.metadata.hasExif ? t('result.yes') : t('result.no')}</span>
                           </div>
                           {result.metadata.cameraMake && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Camera:</span>
+                              <span className="text-muted-foreground">{t('result.camera')}:</span>
                               <span>{result.metadata.cameraMake} {result.metadata.cameraModel}</span>
                             </div>
                           )}
@@ -945,7 +945,7 @@ export default function Upload() {
                   )}
                 </Button>
                 <Button variant="outline" onClick={resetAnalysis} data-testid="button-analyze-another">
-                  Analyze Another Image
+                  {t('upload.analyzeAnother')}
                 </Button>
               </div>
             </div>
