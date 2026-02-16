@@ -18,6 +18,7 @@ export default function Privacy() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <p className="text-muted-foreground text-sm">{t('privacy.lastUpdated')}</p>
             <p className="text-muted-foreground">{t('privacy.intro')}</p>
 
             <section>
@@ -26,13 +27,48 @@ export default function Privacy() {
             </section>
 
             <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.faceData')}</h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.faceDataText')}</p>
+            </section>
+
+            <section>
               <h2 className="text-lg font-semibold mb-2">{t('privacy.usage')}</h2>
-              <p className="text-muted-foreground">{t('privacy.usageText')}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.usageText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.thirdParty')}</h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.thirdPartyText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.retention')}</h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.retentionText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.userRights')}</h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.userRightsText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.children')}</h2>
+              <p className="text-muted-foreground">{t('privacy.childrenText')}</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold mb-2">{t('privacy.security')}</h2>
-              <p className="text-muted-foreground">{t('privacy.securityText')}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.securityText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.changes')}</h2>
+              <p className="text-muted-foreground">{t('privacy.changesText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold mb-2">{t('privacy.contact')}</h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">{t('privacy.contactText')}</p>
             </section>
           </CardContent>
         </Card>
