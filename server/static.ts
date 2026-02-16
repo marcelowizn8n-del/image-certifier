@@ -39,13 +39,15 @@ export function serveStatic(app: Express) {
     }),
   );
 
-  // fall through to index.html if the file doesn't exist
+  // fall through to index.html if the file doesn't exist (SPA catch-all)
   app.use("/{*path}", (req, res, next) => {
-    if (req.method !== "GET") return next();
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
     if (req.path.startsWith("/api")) return next();
 
     const accept = String(req.headers.accept || "");
-    if (!accept.includes("text/html")) return next();
+    // Be lenient: serve index.html unless the client explicitly wants only non-HTML
+    // (e.g. JSON, images). This ensures bots/validators that omit Accept get HTML.
+    if (accept && !accept.includes("text/html") && !accept.includes("*/*")) return next();
 
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.sendFile(path.resolve(distPath, "index.html"));
