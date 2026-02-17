@@ -28,7 +28,7 @@ interface Product {
 }
 
 export default function Pricing() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
 
   const { data: productsData, isLoading } = useQuery<{ data: Product[] }>({
@@ -50,12 +50,27 @@ export default function Pricing() {
         window.location.href = "/auth?next=/pricing";
         return;
       }
-      toast.error("Checkout failed", { description: error?.message || "Checkout failed" });
+      toast.error(t("pricing.checkoutFailed"), {
+        description: error?.message || t("pricing.checkoutFailed"),
+      });
     },
   });
 
   const formatPrice = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('pt-BR', {
+    const locale =
+      language === "pt"
+        ? "pt-BR"
+        : language === "en"
+          ? "en-US"
+          : language === "es"
+            ? "es-ES"
+            : language === "fr"
+              ? "fr-FR"
+              : language === "de"
+                ? "de-DE"
+                : "zh-CN";
+
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -83,30 +98,30 @@ export default function Pricing() {
     switch (tier) {
       case 'basic':
         return [
-          '100 análises por mês',
-          'Histórico completo',
-          'Suporte por email',
-          'Detecção de IA básica',
+          t("pricing.features.basic.1"),
+          t("pricing.features.basic.2"),
+          t("pricing.features.basic.3"),
+          t("pricing.features.basic.4"),
         ];
       case 'premium':
         return [
-          'Análises ilimitadas',
-          'Batch processing',
-          'API access',
-          'Detecção avançada',
-          'Suporte prioritário',
+          t("pricing.features.premium.1"),
+          t("pricing.features.premium.2"),
+          t("pricing.features.premium.3"),
+          t("pricing.features.premium.4"),
+          t("pricing.features.premium.5"),
         ];
       case 'enterprise':
         return [
-          'Tudo do Premium',
-          'Múltiplos usuários',
-          'Dashboard customizado',
-          'SLA garantido',
-          'Suporte 24/7',
-          'Treinamento dedicado',
+          t("pricing.features.enterprise.1"),
+          t("pricing.features.enterprise.2"),
+          t("pricing.features.enterprise.3"),
+          t("pricing.features.enterprise.4"),
+          t("pricing.features.enterprise.5"),
+          t("pricing.features.enterprise.6"),
         ];
       default:
-        return ['Recursos básicos'];
+        return [t("pricing.features.default")];
     }
   };
 
@@ -116,7 +131,8 @@ export default function Pricing() {
     return product.prices.find((p) => p.recurring?.interval === interval) ?? null;
   };
 
-  const intervalLabel = billingInterval === "year" ? "/ano" : "/mês";
+  const intervalLabel =
+    billingInterval === "year" ? t("pricing.interval.yearSuffix") : t("pricing.interval.monthSuffix");
 
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => {
@@ -132,9 +148,9 @@ export default function Pricing() {
       
       <main className="flex-1 container mx-auto px-4 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Escolha seu Plano</h1>
+          <h1 className="text-4xl font-bold mb-4">{t("pricing.title")}</h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Proteja-se contra fake news e imagens manipuladas com nossa tecnologia de detecção de IA
+            {t("pricing.subtitle")}
           </p>
         </div>
 
@@ -146,7 +162,7 @@ export default function Pricing() {
               size="sm"
               onClick={() => setBillingInterval("month")}
             >
-              Mensal
+              {t("pricing.interval.month")}
             </Button>
             <Button
               type="button"
@@ -154,7 +170,7 @@ export default function Pricing() {
               size="sm"
               onClick={() => setBillingInterval("year")}
             >
-              Anual
+              {t("pricing.interval.year")}
             </Button>
           </div>
         </div>
@@ -163,27 +179,32 @@ export default function Pricing() {
         <div className="max-w-5xl mx-auto mb-8">
           <Card className="border-dashed" data-testid="card-plan-free">
             <CardHeader className="text-center">
-              <CardTitle className="text-xl">Plano Gratuito</CardTitle>
-              <CardDescription>Experimente nossa tecnologia</CardDescription>
+              <CardTitle className="text-xl">{t("pricing.free.title")}</CardTitle>
+              <CardDescription>{t("pricing.free.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <div className="text-3xl font-bold mb-4">R$ 0<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
+              <div className="text-3xl font-bold mb-4">
+                {t("pricing.free.price")}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {t("pricing.interval.monthSuffix")}
+                </span>
+              </div>
               <ul className="text-sm text-muted-foreground space-y-2 mb-4">
                 <li className="flex items-center justify-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  10 análises gratuitas
+                  {t("pricing.free.feature1")}
                 </li>
                 <li className="flex items-center justify-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  Detecção com IA avançada
+                  {t("pricing.free.feature2")}
                 </li>
                 <li className="flex items-center justify-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  Sem necessidade de cadastro
+                  {t("pricing.free.feature3")}
                 </li>
               </ul>
               <Button variant="outline" className="w-full max-w-xs" disabled>
-                Plano Atual
+                {t("pricing.free.currentPlan")}
               </Button>
             </CardContent>
           </Card>
@@ -197,7 +218,7 @@ export default function Pricing() {
         ) : sortedProducts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
-              Planos de assinatura serão disponibilizados em breve.
+              {t("pricing.comingSoon")}
             </p>
           </div>
         ) : (
@@ -215,7 +236,7 @@ export default function Pricing() {
                 >
                   {isPopular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                      Mais Popular
+                      {t("pricing.mostPopular")}
                     </Badge>
                   )}
                   <CardHeader className="text-center pb-2">
@@ -254,7 +275,7 @@ export default function Pricing() {
                       {checkoutMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : null}
-                      Assinar Agora
+                      {t("pricing.subscribeNow")}
                     </Button>
                   </CardFooter>
                 </Card>
@@ -264,7 +285,7 @@ export default function Pricing() {
         )}
 
         <div className="text-center mt-12 text-sm text-muted-foreground">
-          <p>Todos os planos incluem garantia de 7 dias. Cancele quando quiser.</p>
+          <p>{t("pricing.footerGuarantee")}</p>
         </div>
       </main>
 
