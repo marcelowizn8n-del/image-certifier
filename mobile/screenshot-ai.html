@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 3 - IA Detectada</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; }
+  .screen {
+    width: 1200px;
+    height: 1920px;
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 80px 100px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 80px;
+  }
+  .logo {
+    font-size: 52px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .logo span { color: #818cf8; }
+  .result-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 36px;
+    padding: 70px;
+    flex: 1;
+  }
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+    margin-bottom: 60px;
+  }
+  .score-circle {
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: conic-gradient(#ef4444 0deg 280deg, rgba(255,255,255,0.08) 280deg 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .score-inner {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: #1a1740;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .score-value {
+    font-size: 64px;
+    font-weight: 800;
+    color: #ef4444;
+  }
+  .score-label {
+    font-size: 22px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 4px;
+  }
+  .verdict h2 {
+    font-size: 48px;
+    font-weight: 800;
+    color: #ef4444;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+  .verdict p {
+    font-size: 26px;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.5;
+  }
+  .artifacts {
+    margin-top: 50px;
+  }
+  .artifacts h3 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 32px;
+  }
+  .artifact-item {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .artifact-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ef4444;
+    flex-shrink: 0;
+  }
+  .artifact-text {
+    font-size: 26px;
+    color: rgba(255,255,255,0.65);
+  }
+  .action-btn {
+    display: block;
+    text-align: center;
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: #fff;
+    font-size: 30px;
+    font-weight: 700;
+    padding: 32px;
+    border-radius: 22px;
+    margin-top: 60px;
+  }
+</style>
+</head>
+<body>
+<div class="screen" id="capture">
+  <div class="header">
+    <div class="logo">Image <span>Certifier</span></div>
+  </div>
+  <div class="result-card">
+    <div class="result-header">
+      <div class="score-circle">
+        <div class="score-inner">
+          <div class="score-value">78%</div>
+          <div class="score-label">IA Detectada</div>
+        </div>
+      </div>
+      <div class="verdict">
+        <h2>⚠ Provavelmente Gerada por IA</h2>
+        <p>A análise detectou padrões consistentes com imagens geradas por inteligência artificial.</p>
+      </div>
+    </div>
+    <div class="artifacts">
+      <h3>Artefatos Detectados:</h3>
+      <div class="artifact-item">
+        <div class="artifact-dot"></div>
+        <div class="artifact-text">Inconsistências na geometria facial detectadas</div>
+      </div>
+      <div class="artifact-item">
+        <div class="artifact-dot"></div>
+        <div class="artifact-text">Padrões de textura de pele artificiais</div>
+      </div>
+      <div class="artifact-item">
+        <div class="artifact-dot"></div>
+        <div class="artifact-text">Metadados EXIF ausentes ou inconsistentes</div>
+      </div>
+      <div class="artifact-item">
+        <div class="artifact-dot"></div>
+        <div class="artifact-text">Iluminação com padrões não naturais</div>
+      </div>
+      <div class="artifact-item">
+        <div class="artifact-dot"></div>
+        <div class="artifact-text">Artefatos típicos de modelos de difusão</div>
+      </div>
+    </div>
+  </div>
+  <div class="action-btn">🔍 Analisar Outra Imagem</div>
+</div>
+</body>
+</html>

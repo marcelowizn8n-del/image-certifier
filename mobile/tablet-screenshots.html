@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Tablet Screenshot Generator - Image Certifier</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    gap: 40px;
+  }
+  h1 { color: #fff; font-size: 18px; margin-bottom: 10px; }
+  p.info { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 20px; }
+  .frame-label {
+    color: #a5b4fc;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .tablet-frame {
+    width: 1200px;
+    height: 1920px;
+    border: none;
+    overflow: hidden;
+    position: relative;
+    transform: scale(0.35);
+    transform-origin: top center;
+  }
+  .tablet-wrapper {
+    height: calc(1920px * 0.35 + 30px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  /* Screenshot content - simulated app screens */
+  .screen {
+    width: 1200px;
+    height: 1920px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ===== SCREEN 1: HOME / UPLOAD ===== */
+  .screen-home {
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 60px 80px;
+    justify-content: flex-start;
+  }
+  .screen-home .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 80px;
+  }
+  .screen-home .logo {
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .screen-home .logo span { color: #818cf8; }
+  .screen-home .nav {
+    display: flex;
+    gap: 30px;
+  }
+  .screen-home .nav-item {
+    color: rgba(255,255,255,0.6);
+    font-size: 22px;
+  }
+  .screen-home .hero {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  .screen-home .hero h1 {
+    font-size: 64px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 24px;
+    line-height: 1.15;
+  }
+  .screen-home .hero h1 span { color: #818cf8; }
+  .screen-home .hero p {
+    font-size: 28px;
+    color: rgba(255,255,255,0.6);
+    max-width: 800px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .screen-home .upload-card {
+    background: rgba(255,255,255,0.06);
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 32px;
+    padding: 80px 60px;
+    text-align: center;
+    margin: 0 60px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .screen-home .upload-icon {
+    width: 140px;
+    height: 140px;
+    background: rgba(99,102,241,0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 40px;
+  }
+  .screen-home .upload-icon svg {
+    width: 64px;
+    height: 64px;
+    stroke: #818cf8;
+    fill: none;
+    stroke-width: 2;
+  }
+  .screen-home .upload-text {
+    font-size: 32px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 16px;
+  }
+  .screen-home .upload-formats {
+    font-size: 20px;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 30px;
+  }
+  .screen-home .upload-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    padding: 22px 60px;
+    border-radius: 16px;
+    margin-top: 20px;
+  }
+  .screen-home .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 40px;
+    padding: 0 60px;
+  }
+  .screen-home .tab {
+    padding: 16px 40px;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.05);
+  }
+  .screen-home .tab.active {
+    background: rgba(99,102,241,0.2);
+    color: #a5b4fc;
+  }
+
+  /* ===== SCREEN 2: RESULTS ===== */
+  .screen-results {
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 60px 80px;
+  }
+  .screen-results .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+  .screen-results .logo {
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .screen-results .logo span { color: #818cf8; }
+  .screen-results .result-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 32px;
+    padding: 60px;
+    margin-bottom: 40px;
+  }
+  .screen-results .result-header {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 50px;
+  }
+  .screen-results .score-circle {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: conic-gradient(#10b981 0deg 310deg, rgba(255,255,255,0.1) 310deg 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .screen-results .score-inner {
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: #1e1b4b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .screen-results .score-value {
+    font-size: 56px;
+    font-weight: 800;
+    color: #10b981;
+  }
+  .screen-results .score-label {
+    font-size: 18px;
+    color: rgba(255,255,255,0.5);
+  }
+  .screen-results .verdict {
+    flex: 1;
+  }
+  .screen-results .verdict h2 {
+    font-size: 44px;
+    font-weight: 800;
+    color: #10b981;
+    margin-bottom: 12px;
+  }
+  .screen-results .verdict p {
+    font-size: 24px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.5;
+  }
+  .screen-results .details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .screen-results .detail-item {
+    background: rgba(255,255,255,0.04);
+    border-radius: 20px;
+    padding: 32px;
+  }
+  .screen-results .detail-label {
+    font-size: 18px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .screen-results .detail-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .screen-results .detail-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    margin-top: 14px;
+    overflow: hidden;
+  }
+  .screen-results .detail-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .bar-green { background: #10b981; }
+  .bar-blue { background: #6366f1; }
+  .bar-yellow { background: #f59e0b; }
+  .bar-cyan { background: #06b6d4; }
+  .screen-results .cert-btn {
+    display: block;
+    text-align: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    padding: 28px;
+    border-radius: 20px;
+    margin-top: 40px;
+  }
+
+  /* ===== SCREEN 3: AI DETECTED ===== */
+  .screen-ai {
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 60px 80px;
+  }
+  .screen-ai .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+  .screen-ai .logo {
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .screen-ai .logo span { color: #818cf8; }
+  .screen-ai .result-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 32px;
+    padding: 60px;
+    margin-bottom: 40px;
+  }
+  .screen-ai .result-header {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 50px;
+  }
+  .screen-ai .score-circle {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: conic-gradient(#ef4444 0deg 280deg, rgba(255,255,255,0.1) 280deg 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .screen-ai .score-inner {
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: #1e1b4b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .screen-ai .score-value {
+    font-size: 56px;
+    font-weight: 800;
+    color: #ef4444;
+  }
+  .screen-ai .score-label {
+    font-size: 18px;
+    color: rgba(255,255,255,0.5);
+  }
+  .screen-ai .verdict h2 {
+    font-size: 44px;
+    font-weight: 800;
+    color: #ef4444;
+    margin-bottom: 12px;
+  }
+  .screen-ai .verdict p {
+    font-size: 24px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.5;
+  }
+  .screen-ai .artifacts {
+    margin-top: 40px;
+  }
+  .screen-ai .artifacts h3 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+  .screen-ai .artifact-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .screen-ai .artifact-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ef4444;
+    flex-shrink: 0;
+  }
+  .screen-ai .artifact-text {
+    font-size: 22px;
+    color: rgba(255,255,255,0.7);
+  }
+</style>
+</head>
+<body>
+
+<h1>📱 Tablet Screenshots - Image Certifier (1200 × 1920 px)</h1>
+<p class="info">Clique com botão direito em cada tela → Inspecionar → Capture node screenshot (DevTools)<br>Ou use Cmd+Shift+4 no Mac</p>
+
+<!-- SCREEN 1: Upload / Home -->
+<div class="tablet-wrapper">
+  <div class="frame-label">Tela 1 — Upload (Home)</div>
+  <div class="tablet-frame">
+    <div class="screen screen-home">
+      <div class="header">
+        <div class="logo">Image <span>Certifier</span></div>
+        <div class="nav">
+          <span class="nav-item">Upload</span>
+          <span class="nav-item">Histórico</span>
+          <span class="nav-item">Premium</span>
+        </div>
+      </div>
+      <div class="hero">
+        <h1>Verifique a <span>Autenticidade</span> de Imagens</h1>
+        <p>Detecte se uma imagem foi gerada por IA usando análise avançada de autenticidade</p>
+      </div>
+      <div class="tabs">
+        <div class="tab active">📁 Upload</div>
+        <div class="tab">🔗 URL</div>
+        <div class="tab">📷 Câmera</div>
+      </div>
+      <div class="upload-card">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-text">Arraste uma imagem ou clique para selecionar</div>
+        <div class="upload-formats">PNG, JPG, WEBP — máx. 10MB</div>
+        <div class="upload-btn">Selecionar Imagem</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2: Results - Authentic -->
+<div class="tablet-wrapper">
+  <div class="frame-label">Tela 2 — Resultado: Imagem Autêntica</div>
+  <div class="tablet-frame">
+    <div class="screen screen-results">
+      <div class="header">
+        <div class="logo">Image <span>Certifier</span></div>
+      </div>
+      <div class="result-card">
+        <div class="result-header">
+          <div class="score-circle">
+            <div class="score-inner">
+              <div class="score-value">86%</div>
+              <div class="score-label">Confiança</div>
+            </div>
+          </div>
+          <div class="verdict">
+            <h2>✓ Provavelmente Autêntica</h2>
+            <p>A análise indica que esta imagem provavelmente é uma fotografia real, com alta confiança de autenticidade.</p>
+          </div>
+        </div>
+        <div class="details">
+          <div class="detail-item">
+            <div class="detail-label">Geometria Facial</div>
+            <div class="detail-value">92%</div>
+            <div class="detail-bar"><div class="detail-bar-fill bar-green" style="width:92%"></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Textura de Pele</div>
+            <div class="detail-value">88%</div>
+            <div class="detail-bar"><div class="detail-bar-fill bar-blue" style="width:88%"></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Metadados EXIF</div>
+            <div class="detail-value">Presentes</div>
+            <div class="detail-bar"><div class="detail-bar-fill bar-cyan" style="width:100%"></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Artefatos de IA</div>
+            <div class="detail-value">Nenhum</div>
+            <div class="detail-bar"><div class="detail-bar-fill bar-green" style="width:5%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="cert-btn">📄 Baixar Certificado de Autenticidade</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 3: Results - AI Detected -->
+<div class="tablet-wrapper">
+  <div class="frame-label">Tela 3 — Resultado: IA Detectada</div>
+  <div class="tablet-frame">
+    <div class="screen screen-ai">
+      <div class="header">
+        <div class="logo">Image <span>Certifier</span></div>
+      </div>
+      <div class="result-card">
+        <div class="result-header">
+          <div class="score-circle">
+            <div class="score-inner">
+              <div class="score-value">78%</div>
+              <div class="score-label">IA Detectada</div>
+            </div>
+          </div>
+          <div class="verdict">
+            <h2>⚠ Provavelmente Gerada por IA</h2>
+            <p>A análise detectou padrões consistentes com imagens geradas por inteligência artificial.</p>
+          </div>
+        </div>
+        <div class="artifacts">
+          <h3>Artefatos Detectados:</h3>
+          <div class="artifact-item">
+            <div class="artifact-dot"></div>
+            <div class="artifact-text">Inconsistências na geometria facial detectadas</div>
+          </div>
+          <div class="artifact-item">
+            <div class="artifact-dot"></div>
+            <div class="artifact-text">Padrões de textura de pele artificiais</div>
+          </div>
+          <div class="artifact-item">
+            <div class="artifact-dot"></div>
+            <div class="artifact-text">Metadados EXIF ausentes ou inconsistentes</div>
+          </div>
+          <div class="artifact-item">
+            <div class="artifact-dot"></div>
+            <div class="artifact-text">Iluminação com padrões não naturais</div>
+          </div>
+          <div class="artifact-item">
+            <div class="artifact-dot"></div>
+            <div class="artifact-text">Artefatos típicos de modelos de difusão (Midjourney/DALL-E)</div>
+          </div>
+        </div>
+      </div>
+      <div class="cert-btn" style="background: linear-gradient(135deg, #dc2626, #ef4444);">🔍 Analisar Outra Imagem</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

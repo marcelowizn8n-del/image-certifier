@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Feature Graphic - Image Certifier</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 40px;
+  }
+  .banner {
+    width: 1024px;
+    height: 500px;
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Decorative circles */
+  .banner::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+    top: -200px;
+    right: -100px;
+  }
+  .banner::after {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+    bottom: -150px;
+    left: -50px;
+  }
+  .content {
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    z-index: 1;
+    padding: 0 80px;
+  }
+  .icon-area {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-box {
+    width: 160px;
+    height: 160px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 60px rgba(99, 102, 241, 0.4);
+  }
+  .checkmark {
+    position: relative;
+    width: 90px;
+    height: 90px;
+  }
+  .checkmark svg {
+    width: 90px;
+    height: 90px;
+  }
+  .text-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .app-name {
+    font-size: 52px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+  .app-name span {
+    background: linear-gradient(135deg, #818cf8, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .tagline {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.75);
+    font-weight: 400;
+    line-height: 1.4;
+    max-width: 480px;
+  }
+  .badges {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-ai {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  .badge-real {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .badge-cert {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+  /* Floating elements for visual interest */
+  .float-element {
+    position: absolute;
+    border-radius: 12px;
+    opacity: 0.08;
+    z-index: 0;
+  }
+  .float-1 {
+    width: 120px; height: 120px;
+    background: #6366f1;
+    top: 30px; left: 40px;
+    transform: rotate(15deg);
+  }
+  .float-2 {
+    width: 80px; height: 80px;
+    background: #10b981;
+    bottom: 40px; right: 60px;
+    transform: rotate(-20deg);
+  }
+  .float-3 {
+    width: 60px; height: 60px;
+    background: #f59e0b;
+    top: 60px; right: 200px;
+    transform: rotate(45deg);
+    border-radius: 50%;
+  }
+  .instructions {
+    margin-top: 30px;
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .instructions strong {
+    color: #a5b4fc;
+  }
+</style>
+</head>
+<body>
+
+<div class="banner" id="banner">
+  <div class="float-element float-1"></div>
+  <div class="float-element float-2"></div>
+  <div class="float-element float-3"></div>
+  
+  <div class="content">
+    <div class="icon-area">
+      <div class="icon-box">
+        <div class="checkmark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 12l2 2 4-4"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <div class="text-area">
+      <div class="app-name">Image <span>Certifier</span></div>
+      <div class="tagline">Detecte imagens geradas por IA com análise avançada de autenticidade</div>
+      <div class="badges">
+        <span class="badge badge-ai">🤖 Detecção de IA</span>
+        <span class="badge badge-real">✓ Verificação</span>
+        <span class="badge badge-cert">📄 Certificado</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  <strong>Tamanho: 1024 × 500 px</strong> (exato para Google Play Feature Graphic)<br>
+  Para salvar: clique com botão direito no banner acima → <strong>"Capturar nó como screenshot"</strong> (DevTools)<br>
+  Ou use <strong>Cmd+Shift+4</strong> no Mac para capturar a área exata do banner.
+</div>
+
+</body>
+</html>

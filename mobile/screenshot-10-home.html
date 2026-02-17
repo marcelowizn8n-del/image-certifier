@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Tablet 10" - Home</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; }
+  .screen {
+    width: 1600px;
+    height: 2560px;
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 100px 120px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 140px; }
+  .logo { font-size: 64px; font-weight: 800; color: #fff; }
+  .logo span { color: #818cf8; }
+  .nav { display: flex; gap: 44px; }
+  .nav-item { color: rgba(255,255,255,0.5); font-size: 32px; }
+  .hero { text-align: center; margin-bottom: 100px; }
+  .hero h1 { font-size: 92px; font-weight: 800; color: #fff; margin-bottom: 36px; line-height: 1.15; }
+  .hero h1 span { color: #818cf8; }
+  .hero p { font-size: 38px; color: rgba(255,255,255,0.55); max-width: 1100px; margin: 0 auto; line-height: 1.5; }
+  .tabs { display: flex; justify-content: center; gap: 28px; margin-bottom: 60px; }
+  .tab { padding: 24px 56px; border-radius: 16px; font-size: 32px; font-weight: 600; color: rgba(255,255,255,0.45); background: rgba(255,255,255,0.05); }
+  .tab.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .upload-card {
+    background: rgba(255,255,255,0.05);
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 40px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 0 60px;
+  }
+  .upload-icon { width: 200px; height: 200px; background: rgba(99,102,241,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 56px; }
+  .upload-icon svg { width: 90px; height: 90px; stroke: #818cf8; fill: none; stroke-width: 1.8; }
+  .upload-text { font-size: 42px; color: rgba(255,255,255,0.65); margin-bottom: 20px; }
+  .upload-formats { font-size: 28px; color: rgba(255,255,255,0.3); margin-bottom: 48px; }
+  .upload-btn { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 36px; font-weight: 700; padding: 32px 88px; border-radius: 20px; }
+</style>
+</head>
+<body>
+<div class="screen" id="capture">
+  <div class="header">
+    <div class="logo">Image <span>Certifier</span></div>
+    <div class="nav">
+      <span class="nav-item">Upload</span>
+      <span class="nav-item">Histórico</span>
+      <span class="nav-item">Premium</span>
+    </div>
+  </div>
+  <div class="hero">
+    <h1>Verifique a <span>Autenticidade</span> de Imagens</h1>
+    <p>Detecte se uma imagem foi gerada por IA usando análise avançada de autenticidade</p>
+  </div>
+  <div class="tabs">
+    <div class="tab active">📁 Upload</div>
+    <div class="tab">🔗 URL</div>
+    <div class="tab">📷 Câmera</div>
+  </div>
+  <div class="upload-card">
+    <div class="upload-icon">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="upload-text">Arraste uma imagem ou clique para selecionar</div>
+    <div class="upload-formats">PNG, JPG, WEBP — máx. 10MB</div>
+    <div class="upload-btn">Selecionar Imagem</div>
+  </div>
+</div>
+</body>
+</html>

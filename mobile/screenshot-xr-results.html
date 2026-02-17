@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Android XR - Resultado Autêntico</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; }
+  .screen {
+    width: 1920px;
+    height: 1080px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 32px 60px;
+  }
+  .logo { font-size: 36px; font-weight: 800; color: #fff; }
+  .logo span { color: #818cf8; }
+  .main {
+    flex: 1; display: flex; padding: 0 60px 40px; gap: 50px;
+  }
+  .left { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+  .result-card {
+    background: rgba(255,255,255,0.05); border-radius: 24px; padding: 40px; flex: 1;
+  }
+  .result-header { display: flex; align-items: center; gap: 36px; margin-bottom: 36px; }
+  .score-circle {
+    width: 160px; height: 160px; border-radius: 50%;
+    background: conic-gradient(#10b981 0deg 310deg, rgba(255,255,255,0.08) 310deg 360deg);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .score-inner {
+    width: 132px; height: 132px; border-radius: 50%; background: #1a1740;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .score-value { font-size: 44px; font-weight: 800; color: #10b981; }
+  .score-label { font-size: 16px; color: rgba(255,255,255,0.45); }
+  .verdict h2 { font-size: 34px; font-weight: 800; color: #10b981; margin-bottom: 10px; }
+  .verdict p { font-size: 18px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+  .right { width: 520px; display: flex; flex-direction: column; gap: 20px; }
+  .detail-item {
+    background: rgba(255,255,255,0.04); border-radius: 18px; padding: 28px;
+  }
+  .detail-label { font-size: 14px; color: rgba(255,255,255,0.35); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .detail-value { font-size: 24px; font-weight: 700; color: #fff; }
+  .detail-bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 12px; overflow: hidden; }
+  .detail-bar-fill { height: 100%; border-radius: 4px; }
+  .bar-green { background: #10b981; }
+  .bar-blue { background: #6366f1; }
+  .bar-cyan { background: #06b6d4; }
+  .cert-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff; font-size: 20px; font-weight: 700;
+    padding: 22px; border-radius: 16px; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="screen" id="capture">
+  <div class="header">
+    <div class="logo">Image <span>Certifier</span></div>
+  </div>
+  <div class="main">
+    <div class="left">
+      <div class="result-card">
+        <div class="result-header">
+          <div class="score-circle">
+            <div class="score-inner">
+              <div class="score-value">86%</div>
+              <div class="score-label">Confiança</div>
+            </div>
+          </div>
+          <div class="verdict">
+            <h2>✓ Provavelmente Autêntica</h2>
+            <p>A análise indica que esta imagem provavelmente é uma fotografia real, com alta confiança de autenticidade.</p>
+          </div>
+        </div>
+        <div class="cert-btn">📄 Baixar Certificado de Autenticidade</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="detail-item">
+        <div class="detail-label">Geometria Facial</div>
+        <div class="detail-value">92%</div>
+        <div class="detail-bar"><div class="detail-bar-fill bar-green" style="width:92%"></div></div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Textura de Pele</div>
+        <div class="detail-value">88%</div>
+        <div class="detail-bar"><div class="detail-bar-fill bar-blue" style="width:88%"></div></div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Metadados EXIF</div>
+        <div class="detail-value">Presentes</div>
+        <div class="detail-bar"><div class="detail-bar-fill bar-cyan" style="width:100%"></div></div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Artefatos de IA</div>
+        <div class="detail-value">Nenhum</div>
+        <div class="detail-bar"><div class="detail-bar-fill bar-green" style="width:5%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

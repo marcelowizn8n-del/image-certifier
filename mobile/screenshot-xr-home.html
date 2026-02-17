@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Android XR - Home</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; }
+  .screen {
+    width: 1920px;
+    height: 1080px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 32px 60px;
+  }
+  .logo { font-size: 36px; font-weight: 800; color: #fff; }
+  .logo span { color: #818cf8; }
+  .nav { display: flex; gap: 32px; }
+  .nav-item { color: rgba(255,255,255,0.5); font-size: 18px; }
+  .main {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 0 80px; gap: 80px;
+  }
+  .left { flex: 1; max-width: 700px; }
+  .left h1 { font-size: 56px; font-weight: 800; color: #fff; line-height: 1.15; margin-bottom: 24px; }
+  .left h1 span { color: #818cf8; }
+  .left p { font-size: 22px; color: rgba(255,255,255,0.55); line-height: 1.6; margin-bottom: 36px; }
+  .left .badges { display: flex; gap: 14px; }
+  .badge { padding: 10px 20px; border-radius: 24px; font-size: 15px; font-weight: 600; }
+  .badge-ai { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+  .badge-real { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.25); }
+  .badge-cert { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.25); }
+  .right { flex: 1; max-width: 620px; }
+  .upload-card {
+    background: rgba(255,255,255,0.05);
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 28px;
+    padding: 60px 40px;
+    text-align: center;
+  }
+  .upload-icon { width: 100px; height: 100px; background: rgba(99,102,241,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; }
+  .upload-icon svg { width: 44px; height: 44px; stroke: #818cf8; fill: none; stroke-width: 1.8; }
+  .upload-text { font-size: 22px; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+  .upload-formats { font-size: 16px; color: rgba(255,255,255,0.3); margin-bottom: 28px; }
+  .upload-btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 20px; font-weight: 700; padding: 18px 52px; border-radius: 14px; }
+  .tabs { display: flex; justify-content: center; gap: 14px; margin-bottom: 24px; }
+  .tab { padding: 12px 28px; border-radius: 10px; font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); }
+  .tab.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+</style>
+</head>
+<body>
+<div class="screen" id="capture">
+  <div class="header">
+    <div class="logo">Image <span>Certifier</span></div>
+    <div class="nav">
+      <span class="nav-item">Upload</span>
+      <span class="nav-item">Histórico</span>
+      <span class="nav-item">Premium</span>
+      <span class="nav-item">Manual</span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="left">
+      <h1>Verifique a <span>Autenticidade</span> de Imagens</h1>
+      <p>Detecte se uma imagem foi gerada por IA usando análise avançada. Ideal para jornalistas, criadores de conteúdo e educadores.</p>
+      <div class="badges">
+        <span class="badge badge-ai">🤖 Detecção de IA</span>
+        <span class="badge badge-real">✓ Verificação</span>
+        <span class="badge badge-cert">📄 Certificado</span>
+      </div>
+    </div>
+    <div class="right">
+      <div class="tabs">
+        <div class="tab active">📁 Upload</div>
+        <div class="tab">🔗 URL</div>
+        <div class="tab">📷 Câmera</div>
+      </div>
+      <div class="upload-card">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-text">Arraste uma imagem ou clique para selecionar</div>
+        <div class="upload-formats">PNG, JPG, WEBP — máx. 10MB</div>
+        <div class="upload-btn">Selecionar Imagem</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -56,12 +56,12 @@ Photo & Video
 
 **URL de Privacidade:**
 ```
-https://www.imgcertifier.app/privacy
+https://imgcertifier.app/privacy
 ```
 
 **URL de Suporte:**
 ```
-https://www.imgcertifier.app/about
+https://imgcertifier.app/about
 ```
 
 **Classificação Etária:**
@@ -173,7 +173,7 @@ marciofa@gmail.com
 
 **URL de Privacidade:**
 ```
-https://www.imgcertifier.app/privacy
+https://imgcertifier.app/privacy
 ```
 
 ## Descrição Completa
