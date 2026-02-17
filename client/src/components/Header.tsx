@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { History, Layers, Settings, Upload, CreditCard, Video, BookOpen } from "lucide-react";
+import { History, Layers, Settings, Upload, CreditCard, Video, BookOpen, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -31,12 +32,12 @@ export function Header() {
           <img
             src={logoPath}
             alt="Image Certifier"
-            className="h-10 w-auto max-w-[280px] object-contain"
+            className="h-10 w-auto max-w-[220px] sm:max-w-[280px] object-contain"
             data-testid="img-logo"
           />
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1">
           {navItems.map(({ path, label, icon: Icon }) => (
             <Link key={path} href={path}>
               <Button
@@ -46,15 +47,47 @@ export function Header() {
                 data-testid={`nav-${path.replace("/", "") || "upload"}`}
               >
                 <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden lg:inline">{label}</span>
               </Button>
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           <LanguageSelector />
           <ThemeToggle />
+        </div>
+
+        <div className="flex md:hidden items-center gap-2">
+          <LanguageSelector />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t("nav.menu") || "Menu"}>
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] max-w-sm p-4">
+              <div className="flex flex-col gap-2 mt-6">
+                {navItems.map(({ path, label, icon: Icon }) => (
+                  <SheetClose key={path} asChild>
+                    <Link href={path}>
+                      <Button
+                        variant={location === path ? "secondary" : "ghost"}
+                        className="w-full justify-start gap-3"
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{label}</span>
+                      </Button>
+                    </Link>
+                  </SheetClose>
+                ))}
+
+                <div className="pt-2">
+                  <ThemeToggle />
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
