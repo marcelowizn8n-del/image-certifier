@@ -3,12 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
   analyzeImageSchema, analyzeUrlSchema, updateUserSchema, analyzeVideoSchema,
-  type VideoAnalysisResult, FREE_ANALYSIS_LIMIT, type AnalysisResult
+  type VideoAnalysisResult, FREE_ANALYSIS_LIMIT, type AnalysisResult,
+  apiKeys, apiKeyUsageMonthly
 } from "@shared/schema";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { analysisFeedback } from "@shared/schema";
 import { isVideoAnalysisConfigured } from "./videoAnalysisClient";
 import crypto from "crypto";
@@ -100,12 +101,178 @@ const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) =>
   return res.status(401).json({ message: "Unauthorized - Admin access required" });
 };
 
+const API_RATE_LIMIT_PER_MINUTE = 60;
+const API_DEFAULT_MONTHLY_QUOTA = 5000;
+const apiRateLimitBuckets = new Map<string, { windowStartMs: number; count: number }>();
+
+function getYearMonth(d: Date) {
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function hashApiKey(rawKey: string) {
+  return crypto.createHash("sha256").update(rawKey).digest("hex");
+}
+
+async function authenticateApiKey(req: Request) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader || typeof authHeader !== "string") return null;
+
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+
+  const keyHash = hashApiKey(token.trim());
+  const [keyRow] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
+  if (!keyRow || !keyRow.isActive || keyRow.revokedAt) return null;
+  return keyRow;
+}
+
+function enforceRateLimit(apiKeyId: string) {
+  const now = Date.now();
+  const bucket = apiRateLimitBuckets.get(apiKeyId);
+  if (!bucket || now - bucket.windowStartMs >= 60_000) {
+    apiRateLimitBuckets.set(apiKeyId, { windowStartMs: now, count: 1 });
+    return { allowed: true as const };
+  }
+  if (bucket.count >= API_RATE_LIMIT_PER_MINUTE) {
+    return { allowed: false as const, retryAfterSeconds: Math.ceil((60_000 - (now - bucket.windowStartMs)) / 1000) };
+  }
+  bucket.count += 1;
+  return { allowed: true as const };
+}
+
+async function enforceMonthlyQuota(apiKeyId: string) {
+  const yearMonth = getYearMonth(new Date());
+
+  const [keyRow] = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
+  if (!keyRow || !keyRow.isActive || keyRow.revokedAt) {
+    return { allowed: false as const, error: "API_KEY_INACTIVE" };
+  }
+
+  const quota = keyRow.monthlyQuota ?? API_DEFAULT_MONTHLY_QUOTA;
+
+  const [usageRow] = await db
+    .select()
+    .from(apiKeyUsageMonthly)
+    .where(and(eq(apiKeyUsageMonthly.apiKeyId, apiKeyId), eq(apiKeyUsageMonthly.yearMonth, yearMonth)))
+    .limit(1);
+
+  const used = usageRow?.count ?? 0;
+  if (used >= quota) {
+    return { allowed: false as const, error: "API_QUOTA_EXCEEDED", used, quota };
+  }
+
+  return { allowed: true as const, yearMonth, used, quota };
+}
+
+async function incrementMonthlyUsage(apiKeyId: string, yearMonth: string) {
+  const [existing] = await db
+    .select()
+    .from(apiKeyUsageMonthly)
+    .where(and(eq(apiKeyUsageMonthly.apiKeyId, apiKeyId), eq(apiKeyUsageMonthly.yearMonth, yearMonth)))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(apiKeyUsageMonthly)
+      .set({ count: existing.count + 1, updatedAt: new Date() })
+      .where(eq(apiKeyUsageMonthly.id, existing.id));
+    return;
+  }
+
+  await db.insert(apiKeyUsageMonthly).values({
+    apiKeyId,
+    yearMonth,
+    count: 1,
+    updatedAt: new Date(),
+  });
+}
+
 
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/admin/api-keys", adminAuthMiddleware, async (req, res) => {
+    try {
+      const { name, monthlyQuota } = req.body ?? {};
+      if (!name || typeof name !== "string") {
+        return res.status(400).json({ message: "name is required" });
+      }
+
+      const quota =
+        typeof monthlyQuota === "number" && Number.isFinite(monthlyQuota) && monthlyQuota > 0
+          ? Math.floor(monthlyQuota)
+          : API_DEFAULT_MONTHLY_QUOTA;
+
+      const rawKey = crypto.randomBytes(24).toString("base64url");
+      const keyHash = hashApiKey(rawKey);
+
+      const [created] = await db
+        .insert(apiKeys)
+        .values({ name, keyHash, monthlyQuota: quota, isActive: true })
+        .returning();
+
+      return res.status(201).json({
+        id: created.id,
+        name: created.name,
+        monthlyQuota: created.monthlyQuota,
+        apiKey: rawKey,
+      });
+    } catch (error: any) {
+      console.error("Error creating API key:", error);
+      return res.status(500).json({ message: error?.message || "Failed to create API key" });
+    }
+  });
+
+  app.post("/api/admin/api-keys/:id/revoke", adminAuthMiddleware, async (req, res) => {
+    try {
+      const id = String(req.params.id);
+      const [updated] = await db
+        .update(apiKeys)
+        .set({ isActive: false, revokedAt: new Date() })
+        .where(eq(apiKeys.id, id))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ message: "API key not found" });
+      }
+      return res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error revoking API key:", error);
+      return res.status(500).json({ message: error?.message || "Failed to revoke API key" });
+    }
+  });
+
+  app.get("/api/admin/api-keys", adminAuthMiddleware, async (req, res) => {
+    try {
+      const keys = await db.select({
+        id: apiKeys.id,
+        name: apiKeys.name,
+        monthlyQuota: apiKeys.monthlyQuota,
+        isActive: apiKeys.isActive,
+        createdAt: apiKeys.createdAt,
+        revokedAt: apiKeys.revokedAt,
+      }).from(apiKeys);
+
+      const yearMonth = getYearMonth(new Date());
+      const usage = await db.select().from(apiKeyUsageMonthly).where(eq(apiKeyUsageMonthly.yearMonth, yearMonth));
+
+      const usageByKey = new Map<string, number>();
+      for (const u of usage) usageByKey.set(u.apiKeyId, u.count);
+
+      return res.json({
+        yearMonth,
+        data: keys.map((k) => ({ ...k, usedThisMonth: usageByKey.get(k.id) ?? 0 })),
+      });
+    } catch (error: any) {
+      console.error("Error listing API keys:", error);
+      return res.status(500).json({ message: error?.message || "Failed to list API keys" });
+    }
+  });
 
   app.post("/api/admin/reset-password", adminAuthMiddleware, async (req, res) => {
     try {
@@ -283,6 +450,59 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/v1/analyze", async (req, res) => {
+    try {
+      const apiKey = await authenticateApiKey(req);
+      if (!apiKey) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const rate = enforceRateLimit(apiKey.id);
+      if (!rate.allowed) {
+        res.setHeader("Retry-After", String(rate.retryAfterSeconds));
+        return res.status(429).json({ message: "Rate limit exceeded" });
+      }
+
+      const quota = await enforceMonthlyQuota(apiKey.id);
+      if (!quota.allowed) {
+        return res.status(403).json({ message: "Quota exceeded", error: quota.error, used: quota.used, quota: quota.quota });
+      }
+
+      const parsed = analyzeImageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+
+      const { imageData, filename } = parsed.data;
+
+      const analysisResult = await analyzeImageAdvanced(imageData, filename);
+
+      await incrementMonthlyUsage(apiKey.id, quota.yearMonth);
+
+      const analysis = await storage.createAnalysis({
+        filename,
+        result: analysisResult.result,
+        confidence: analysisResult.confidence,
+        artifacts: analysisResult.artifacts,
+        metadata: analysisResult.metadata,
+        debugScores: analysisResult.debugScores,
+        imageData: imageData.length < 500000 ? imageData : undefined,
+      });
+
+      return res.json({
+        ...analysis,
+        apiUsage: {
+          yearMonth: quota.yearMonth,
+          used: (quota.used ?? 0) + 1,
+          quota: quota.quota,
+        },
+      });
+    } catch (error) {
+      console.error("Error analyzing image (API v1):", error);
+      return res.status(500).json({ message: "Failed to analyze image" });
+    }
+  });
+
   // Analyze image from URL
   app.post("/api/analyze-url", async (req, res) => {
     try {
@@ -416,6 +636,139 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error analyzing URL:", error);
       res.status(500).json({ message: "Failed to analyze image from URL" });
+    }
+  });
+
+  app.post("/api/v1/analyze-url", async (req, res) => {
+    try {
+      const apiKey = await authenticateApiKey(req);
+      if (!apiKey) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const rate = enforceRateLimit(apiKey.id);
+      if (!rate.allowed) {
+        res.setHeader("Retry-After", String(rate.retryAfterSeconds));
+        return res.status(429).json({ message: "Rate limit exceeded" });
+      }
+
+      const quota = await enforceMonthlyQuota(apiKey.id);
+      if (!quota.allowed) {
+        return res.status(403).json({ message: "Quota exceeded", error: quota.error, used: quota.used, quota: quota.quota });
+      }
+
+      const parsed = analyzeUrlSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid URL", errors: parsed.error.errors });
+      }
+
+      let { url } = parsed.data;
+      console.log("API v1 analyzing image from URL:", url);
+
+      if (isInstagramUrl(url)) {
+        return res.status(400).json({
+          message:
+            "Links do Instagram não são suportados diretamente. Para analisar uma imagem do Instagram:\n\n1. Abra a imagem no Instagram\n2. Toque nos três pontos (...)\n3. Selecione 'Salvar' ou faça uma captura de tela\n4. Use a opção 'Arquivo' para fazer upload da imagem salva",
+          error: "INSTAGRAM_NOT_SUPPORTED",
+          suggestion: "save_image",
+        });
+      }
+
+      const youtubeVideoId = extractYouTubeVideoId(url);
+      let isYouTubeThumbnail = false;
+      if (youtubeVideoId) {
+        url = getYouTubeThumbnailUrl(youtubeVideoId);
+        isYouTubeThumbnail = true;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (isYouTubeThumbnail && youtubeVideoId) {
+          const fallbackUrl = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+          const fallbackResponse = await fetch(fallbackUrl);
+          if (fallbackResponse.ok) {
+            const contentType = fallbackResponse.headers.get("content-type");
+            const arrayBuffer = await fallbackResponse.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString("base64");
+            const imageData = `data:${contentType};base64,${base64}`;
+            const filename = `youtube-thumbnail-${youtubeVideoId}.jpg`;
+
+            const analysisResult = await analyzeImageAdvanced(imageData, filename);
+
+            await incrementMonthlyUsage(apiKey.id, quota.yearMonth);
+
+            const analysis = await storage.createAnalysis({
+              filename,
+              result: analysisResult.result,
+              confidence: analysisResult.confidence,
+              artifacts: analysisResult.artifacts,
+              metadata: analysisResult.metadata,
+              debugScores: analysisResult.debugScores,
+              imageData: imageData.length < 500000 ? imageData : undefined,
+            });
+
+            return res.json({
+              ...analysis,
+              youtubeVideoId,
+              apiUsage: {
+                yearMonth: quota.yearMonth,
+                used: (quota.used ?? 0) + 1,
+                quota: quota.quota,
+              },
+            });
+          }
+        }
+
+        if (isYouTubeThumbnail) {
+          return res.status(400).json({
+            message:
+              "Não foi possível obter a thumbnail do vídeo do YouTube. O vídeo pode não existir, ter sido removido, ou estar privado.",
+            error: "YOUTUBE_THUMBNAIL_NOT_FOUND",
+          });
+        }
+        return res.status(400).json({ message: "Failed to fetch image from URL" });
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.startsWith("image/")) {
+        return res.status(400).json({
+          message:
+            "URL does not point to an image. Please provide a direct image URL (ending in .jpg, .png, etc.)",
+        });
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString("base64");
+      const imageData = `data:${contentType};base64,${base64}`;
+
+      const urlParts = url.split("/");
+      const filename = urlParts[urlParts.length - 1] || "image-from-url";
+
+      const analysisResult = await analyzeImageAdvanced(imageData, filename);
+
+      await incrementMonthlyUsage(apiKey.id, quota.yearMonth);
+
+      const analysis = await storage.createAnalysis({
+        filename,
+        result: analysisResult.result,
+        confidence: analysisResult.confidence,
+        artifacts: analysisResult.artifacts,
+        metadata: analysisResult.metadata,
+        debugScores: analysisResult.debugScores,
+        imageData: imageData.length < 500000 ? imageData : undefined,
+      });
+
+      return res.json({
+        ...analysis,
+        apiUsage: {
+          yearMonth: quota.yearMonth,
+          used: (quota.used ?? 0) + 1,
+          quota: quota.quota,
+        },
+      });
+    } catch (error) {
+      console.error("Error analyzing URL (API v1):", error);
+      return res.status(500).json({ message: "Failed to analyze image from URL" });
     }
   });
 

@@ -172,5 +172,29 @@ export const anonymousUsage = pgTable("anonymous_usage", {
 
 export type AnonymousUsage = typeof anonymousUsage.$inferSelect;
 
+// API keys (for paid API access)
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  monthlyQuota: integer("monthly_quota").default(5000).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+
+export const apiKeyUsageMonthly = pgTable("api_key_usage_monthly", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  apiKeyId: varchar("api_key_id").notNull(),
+  yearMonth: text("year_month").notNull(), // YYYY-MM
+  count: integer("count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ApiKeyUsageMonthly = typeof apiKeyUsageMonthly.$inferSelect;
+
 // Freemium constants
 export const FREE_ANALYSIS_LIMIT = 10;
