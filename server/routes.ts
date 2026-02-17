@@ -116,13 +116,22 @@ function hashApiKey(rawKey: string) {
 }
 
 async function authenticateApiKey(req: Request) {
+  const xApiKeyHeader = req.headers["x-api-key"];
   const authHeader = req.headers["authorization"];
-  if (!authHeader || typeof authHeader !== "string") return null;
 
-  const [scheme, token] = authHeader.split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  let rawKey: string | null = null;
+  if (typeof xApiKeyHeader === "string" && xApiKeyHeader.trim()) {
+    rawKey = xApiKeyHeader.trim();
+  } else if (typeof authHeader === "string" && authHeader.trim()) {
+    const [scheme, token] = authHeader.split(" ");
+    if (scheme?.toLowerCase() === "bearer" && token?.trim()) {
+      rawKey = token.trim();
+    }
+  }
 
-  const keyHash = hashApiKey(token.trim());
+  if (!rawKey) return null;
+
+  const keyHash = hashApiKey(rawKey);
   const [keyRow] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
   if (!keyRow || !keyRow.isActive || keyRow.revokedAt) return null;
   return keyRow;
