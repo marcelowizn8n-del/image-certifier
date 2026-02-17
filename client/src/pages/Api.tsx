@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Api() {
   const { t } = useLanguage();
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://imgcertifier.app";
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -37,7 +38,7 @@ Authorization: Bearer SUA_API_KEY`}</pre>
                   <p className="font-medium">POST /api/v1/analyze-url</p>
                   <p className="text-muted-foreground text-sm">{t("api.analyzeUrlDescription")}</p>
                   <div className="rounded-md border bg-muted/30 p-4 mt-2">
-                    <pre className="text-xs overflow-auto whitespace-pre">{`curl -i -X POST 'https://imgcertifier.app/api/v1/analyze-url' \\
+                    <pre className="text-xs overflow-auto whitespace-pre">{`curl -i -X POST '${baseUrl}/api/v1/analyze-url' \\
   -H 'x-api-key: SUA_API_KEY' \\
   -H 'content-type: application/json' \\
   --data '{"url":"https://upload.wikimedia.org/wikipedia/commons/3/3f/JPEG_example_flower.jpg"}'`}</pre>
@@ -48,7 +49,7 @@ Authorization: Bearer SUA_API_KEY`}</pre>
                   <p className="font-medium">POST /api/v1/analyze</p>
                   <p className="text-muted-foreground text-sm">{t("api.analyzeUploadDescription")}</p>
                   <div className="rounded-md border bg-muted/30 p-4 mt-2">
-                    <pre className="text-xs overflow-auto whitespace-pre">{`python3 - <<'PY' '/caminho/para/imagem.png' | curl -i -X POST 'https://imgcertifier.app/api/v1/analyze' \\
+                    <pre className="text-xs overflow-auto whitespace-pre">{`python3 - <<'PY' '/caminho/para/imagem.png' | curl -i -X POST '${baseUrl}/api/v1/analyze' \\
   -H 'x-api-key: SUA_API_KEY' \\
   -H 'content-type: application/json' \\
   --data-binary @-
