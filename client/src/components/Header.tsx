@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { History, Layers, Settings, Upload, CreditCard, Video, BookOpen, Menu } from "lucide-react";
+import { History, Layers, Settings, Upload, CreditCard, Video, BookOpen, Menu, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -21,6 +21,7 @@ export function Header() {
     { path: "/dashboard", label: t('nav.dashboard'), icon: History },
     { path: "/batch", label: t('nav.batch'), icon: Layers },
     { path: "/pricing", label: t('nav.pricing'), icon: CreditCard },
+    { path: "/api", label: t('nav.api'), icon: Code },
     { path: "/manual", label: t('nav.manual'), icon: BookOpen },
     { path: "/admin", label: t('nav.admin'), icon: Settings },
   ];

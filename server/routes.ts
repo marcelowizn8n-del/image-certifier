@@ -103,6 +103,11 @@ const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) =>
 
 const API_RATE_LIMIT_PER_MINUTE = 60;
 const API_DEFAULT_MONTHLY_QUOTA = 5000;
+const API_MONTHLY_QUOTA_BY_PLAN = {
+  basic: 1000,
+  premium: 10000,
+  enterprise: 50000,
+} as const;
 const apiRateLimitBuckets = new Map<string, { windowStartMs: number; count: number }>();
 
 function getYearMonth(d: Date) {
@@ -224,15 +229,22 @@ export async function registerRoutes(
 
   app.post("/api/admin/api-keys", adminAuthMiddleware, async (req, res) => {
     try {
-      const { name, monthlyQuota } = req.body ?? {};
+      const { name, monthlyQuota, plan } = req.body ?? {};
       if (!name || typeof name !== "string") {
         return res.status(400).json({ message: "name is required" });
+      }
+
+      const planKey = typeof plan === "string" && plan.trim() ? plan.trim().toLowerCase() : null;
+      if (planKey && !(planKey in API_MONTHLY_QUOTA_BY_PLAN)) {
+        return res.status(400).json({ message: "Invalid plan", allowedPlans: Object.keys(API_MONTHLY_QUOTA_BY_PLAN) });
       }
 
       const quota =
         typeof monthlyQuota === "number" && Number.isFinite(monthlyQuota) && monthlyQuota > 0
           ? Math.floor(monthlyQuota)
-          : API_DEFAULT_MONTHLY_QUOTA;
+          : planKey
+            ? API_MONTHLY_QUOTA_BY_PLAN[planKey as keyof typeof API_MONTHLY_QUOTA_BY_PLAN]
+            : API_DEFAULT_MONTHLY_QUOTA;
 
       const rawKey = crypto.randomBytes(24).toString("base64url");
       const keyHash = hashApiKey(rawKey);

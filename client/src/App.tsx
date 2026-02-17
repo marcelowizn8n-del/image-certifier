@@ -17,6 +17,7 @@ import About from "@/pages/About";
 import Pricing from "@/pages/Pricing";
 import Manual from "@/pages/Manual";
 import Auth from "@/pages/Auth";
+import Api from "@/pages/Api";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/batch" component={BatchUpload} />
       <Route path="/admin" component={Admin} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/api" component={Api} />
       <Route path="/auth" component={Auth} />
       <Route path="/manual" component={Manual} />
       <Route path="/checkout/success" component={Upload} />
