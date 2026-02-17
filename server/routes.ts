@@ -87,6 +87,14 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 if (!ADMIN_SECRET) {
   console.error('ADMIN_SECRET environment variable is not set. Admin endpoints will be unavailable.');
+} else {
+  console.log(
+    `Admin auth configured (len=${ADMIN_SECRET.length}, sha256=${crypto
+      .createHash("sha256")
+      .update(ADMIN_SECRET)
+      .digest("hex")
+      .slice(0, 8)})`,
+  );
 }
 
 const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -106,7 +114,6 @@ const API_DEFAULT_MONTHLY_QUOTA = 5000;
 const API_MONTHLY_QUOTA_BY_PLAN = {
   basic: 1000,
   premium: 10000,
-  enterprise: 50000,
 } as const;
 const apiRateLimitBuckets = new Map<string, { windowStartMs: number; count: number }>();
 
@@ -235,12 +242,20 @@ export async function registerRoutes(
       }
 
       const planKey = typeof plan === "string" && plan.trim() ? plan.trim().toLowerCase() : null;
-      if (planKey && !(planKey in API_MONTHLY_QUOTA_BY_PLAN)) {
-        return res.status(400).json({ message: "Invalid plan", allowedPlans: Object.keys(API_MONTHLY_QUOTA_BY_PLAN) });
+      if (planKey && planKey !== "enterprise" && !(planKey in API_MONTHLY_QUOTA_BY_PLAN)) {
+        return res.status(400).json({ message: "Invalid plan", allowedPlans: [...Object.keys(API_MONTHLY_QUOTA_BY_PLAN), "enterprise"] });
+      }
+
+      const hasExplicitQuota = typeof monthlyQuota === "number" && Number.isFinite(monthlyQuota) && monthlyQuota > 0;
+      if (planKey === "enterprise" && !hasExplicitQuota) {
+        return res.status(400).json({
+          message: "monthlyQuota is required for enterprise plan",
+          example: { name: "Cliente Enterprise", plan: "enterprise", monthlyQuota: 50000 },
+        });
       }
 
       const quota =
-        typeof monthlyQuota === "number" && Number.isFinite(monthlyQuota) && monthlyQuota > 0
+        hasExplicitQuota
           ? Math.floor(monthlyQuota)
           : planKey
             ? API_MONTHLY_QUOTA_BY_PLAN[planKey as keyof typeof API_MONTHLY_QUOTA_BY_PLAN]

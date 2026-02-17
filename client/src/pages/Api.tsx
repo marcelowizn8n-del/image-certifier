@@ -72,7 +72,7 @@ PY`}</pre>
 Quota mensal padrão:
 - Basic: 1.000 análises/mês
 - Premium: 10.000 análises/mês
-- Enterprise: sob contrato (ex: 50.000+)`}</pre>
+- Enterprise: sob contrato (definido no momento de criação da API key)`}</pre>
               </div>
             </section>
 
