@@ -189,6 +189,23 @@ async function incrementMonthlyUsage(apiKeyId: string, yearMonth: string) {
   });
 }
 
+async function fetchImageFromUrl(url: string): Promise<globalThis.Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": "ImageCertifier/1.0 (+https://imgcertifier.app)",
+        accept: "image/*,*/*;q=0.8",
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 
 
 export async function registerRoutes(
@@ -589,7 +606,11 @@ export async function registerRoutes(
             error: "YOUTUBE_THUMBNAIL_NOT_FOUND"
           });
         }
-        return res.status(400).json({ message: "Failed to fetch image from URL" });
+        return res.status(400).json({
+          message: "Failed to fetch image from URL",
+          error: "FETCH_NOT_OK",
+          status: response.status,
+        });
       }
 
       const contentType = response.headers.get("content-type");
@@ -681,11 +702,29 @@ export async function registerRoutes(
         isYouTubeThumbnail = true;
       }
 
-      const response = await fetch(url);
+      let response: globalThis.Response;
+      try {
+        response = await fetchImageFromUrl(url);
+      } catch (err: any) {
+        return res.status(502).json({
+          message: "Failed to fetch image from URL",
+          error: "FETCH_FAILED",
+          details: err?.name === "AbortError" ? "Request timed out" : (err?.message || String(err)),
+        });
+      }
       if (!response.ok) {
         if (isYouTubeThumbnail && youtubeVideoId) {
           const fallbackUrl = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
-          const fallbackResponse = await fetch(fallbackUrl);
+          let fallbackResponse: globalThis.Response;
+          try {
+            fallbackResponse = await fetchImageFromUrl(fallbackUrl);
+          } catch (err: any) {
+            return res.status(502).json({
+              message: "Failed to fetch image from URL",
+              error: "FETCH_FAILED",
+              details: err?.name === "AbortError" ? "Request timed out" : (err?.message || String(err)),
+            });
+          }
           if (fallbackResponse.ok) {
             const contentType = fallbackResponse.headers.get("content-type");
             const arrayBuffer = await fallbackResponse.arrayBuffer();
