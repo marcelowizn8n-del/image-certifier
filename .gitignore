@@ -7,5 +7,3 @@ vite.config.ts.*
 .windsurf/
 .expo/
 mobile/.expo/
-mobile/ios/
-mobile/android/
