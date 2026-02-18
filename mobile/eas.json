@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "NPM_FLAGS": "--legacy-peer-deps",
         "RCT_USE_RN_DEP": "0",
         "RCT_USE_PREBUILT_RNCORE": "0"
       }
@@ -15,6 +16,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
+        "NPM_FLAGS": "--legacy-peer-deps",
         "RCT_USE_RN_DEP": "0",
         "RCT_USE_PREBUILT_RNCORE": "0"
       }
@@ -22,6 +24,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
+        "NPM_FLAGS": "--legacy-peer-deps",
         "RCT_USE_RN_DEP": "0",
         "RCT_USE_PREBUILT_RNCORE": "0"
       }
