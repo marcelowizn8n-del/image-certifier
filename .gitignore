@@ -6,3 +6,6 @@ vite.config.ts.*
 *.tar.gz.windsurf/
 .windsurf/
 .expo/
+mobile/.expo/
+mobile/ios/
+mobile/android/
