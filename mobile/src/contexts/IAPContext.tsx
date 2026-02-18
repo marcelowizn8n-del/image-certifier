@@ -19,9 +19,12 @@ const API_BASE_URL = 'https://imgcertifier.app';
 // Product IDs — must match App Store Connect and Google Play Console
 const SUBSCRIPTION_SKUS = Platform.select({
   ios: [
-    'app.imgcertifier.basic.monthly',
-    'app.imgcertifier.premium.monthly',
-    'app.imgcertifier.enterprise.monthly',
+    'BasicoMensal',
+    'BasicoAnual',
+    'PremiumMensal',
+    'PremiumAnual',
+    'EnterpriseMensal',
+    'EnterpriseAnual',
   ],
   android: [
     'app.imgcertifier.basic.monthly',

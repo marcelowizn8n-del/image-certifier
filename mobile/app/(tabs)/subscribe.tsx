@@ -14,22 +14,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useIAP } from '../../src/contexts/IAPContext';
 
+const SKU_BY_TIER = Platform.select({
+  ios: {
+    basic: 'BasicoMensal',
+    premium: 'PremiumMensal',
+    enterprise: 'EnterpriseMensal',
+  },
+  android: {
+    basic: 'app.imgcertifier.basic.monthly',
+    premium: 'app.imgcertifier.premium.monthly',
+    enterprise: 'app.imgcertifier.enterprise.monthly',
+  },
+  default: {
+    basic: 'BasicoMensal',
+    premium: 'PremiumMensal',
+    enterprise: 'EnterpriseMensal',
+  },
+});
+
 const PLAN_DETAILS = [
   {
-    sku: 'app.imgcertifier.basic.monthly',
     tier: 'basic',
     icon: 'shield-checkmark-outline' as const,
     analyses: '50',
   },
   {
-    sku: 'app.imgcertifier.premium.monthly',
     tier: 'premium',
     icon: 'diamond-outline' as const,
     analyses: '∞',
     popular: true,
   },
   {
-    sku: 'app.imgcertifier.enterprise.monthly',
     tier: 'enterprise',
     icon: 'rocket-outline' as const,
     analyses: '∞',
@@ -114,12 +129,13 @@ export default function SubscribeScreen() {
 
         <View style={styles.plans}>
           {PLAN_DETAILS.map((plan) => {
-            const price = getPrice(plan.sku);
+            const sku = (SKU_BY_TIER as any)?.[plan.tier] as string;
+            const price = getPrice(sku);
             return (
               <TouchableOpacity
-                key={plan.sku}
+                key={plan.tier}
                 disabled={purchaseInProgress}
-                onPress={() => subscribe(plan.sku)}
+                onPress={() => subscribe(sku)}
                 style={[
                   styles.planCard,
                   {
