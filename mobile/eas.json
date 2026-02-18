@@ -1,17 +1,30 @@
 {
   "cli": {
-    "version": ">= 7.0.0"
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "RCT_USE_RN_DEP": "0",
+        "RCT_USE_PREBUILT_RNCORE": "0"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "RCT_USE_RN_DEP": "0",
+        "RCT_USE_PREBUILT_RNCORE": "0"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "RCT_USE_RN_DEP": "0",
+        "RCT_USE_PREBUILT_RNCORE": "0"
+      }
     }
   },
   "submit": {

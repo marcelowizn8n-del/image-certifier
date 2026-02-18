@@ -33,9 +33,11 @@
       "package": "app.imgcertifier.mobile",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -43,7 +45,30 @@
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
+    "newArchEnabled": true,
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true,
+            "extraPods": [
+              {
+                "name": "fmt",
+                "podspec": "../node_modules/react-native/third-party-podspecs/fmt.podspec"
+              },
+              {
+                "name": "fast_float",
+                "podspec": "../node_modules/react-native/third-party-podspecs/fast_float.podspec"
+              },
+              {
+                "name": "RCT-Folly",
+                "podspec": "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
+              }
+            ]
+          }
+        }
+      ],
       "expo-router",
       "expo-camera",
       "expo-image-picker",
@@ -55,6 +80,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "97fb5559-49bd-4543-8492-6c48b34b5d29"
       }
     }
   }
