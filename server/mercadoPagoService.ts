@@ -36,7 +36,6 @@ export class MercadoPagoService {
         payer_email: data.payerEmail,
         external_reference: data.userId,
         back_url: data.backUrl,
-        status: 'pending',
       },
     });
     return result;
