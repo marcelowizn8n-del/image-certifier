@@ -14,8 +14,7 @@ export const users = pgTable("users", {
   isPremium: boolean("is_premium").default(false).notNull(),
   isFreeAccount: boolean("is_free_account").default(false).notNull(),
   analysisCount: integer("analysis_count").default(0).notNull(),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
+  mpSubscriptionId: text("mp_subscription_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -30,8 +29,7 @@ export const updateUserSchema = z.object({
   isFreeAccount: z.boolean().optional(),
   role: z.enum(["user", "admin"]).optional(),
   password: z.string().optional(),
-  stripeCustomerId: z.string().optional(),
-  stripeSubscriptionId: z.string().optional(),
+  mpSubscriptionId: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -195,6 +193,38 @@ export const apiKeyUsageMonthly = pgTable("api_key_usage_monthly", {
 });
 
 export type ApiKeyUsageMonthly = typeof apiKeyUsageMonthly.$inferSelect;
+
+// Mercado Pago plans
+export const mpPlans = pgTable("mp_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mpPlanId: text("mp_plan_id").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  tier: text("tier").$type<"basic" | "premium" | "enterprise">().notNull(),
+  amountBrl: integer("amount_brl").notNull(), // in centavos
+  frequency: integer("frequency").default(1).notNull(),
+  frequencyType: text("frequency_type").default("months").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MpPlan = typeof mpPlans.$inferSelect;
+
+// Mercado Pago subscriptions
+export const mpSubscriptions = pgTable("mp_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  mpSubscriptionId: text("mp_subscription_id").notNull(),
+  mpPlanId: text("mp_plan_id"),
+  status: text("status").$type<"authorized" | "pending" | "paused" | "cancelled">().default("pending").notNull(),
+  payerEmail: text("payer_email"),
+  lastPaymentDate: timestamp("last_payment_date"),
+  nextPaymentDate: timestamp("next_payment_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type MpSubscription = typeof mpSubscriptions.$inferSelect;
 
 // Freemium constants
 export const FREE_ANALYSIS_LIMIT = 10;

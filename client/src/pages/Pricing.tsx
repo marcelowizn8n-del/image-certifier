@@ -5,39 +5,31 @@ import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Check, Sparkles, Crown, Building2, Loader2 } from "lucide-react";
+import { Check, Sparkles, Crown, Building2, Loader2, CreditCard, QrCode } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "sonner";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-interface Price {
+interface Plan {
   id: string;
-  unit_amount: number;
-  currency: string;
-  recurring: { interval: string } | null;
-  active: boolean;
-}
-
-interface Product {
-  id: string;
+  mpPlanId: string;
   name: string;
-  description: string;
+  description: string | null;
+  tier: "basic" | "premium" | "enterprise";
+  amountBrl: number; // centavos
   active: boolean;
-  metadata: { tier?: string; analysisLimit?: string };
-  prices: Price[];
 }
 
 export default function Pricing() {
   const { t, language } = useLanguage();
-  const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
 
-  const { data: productsData, isLoading } = useQuery<{ data: Product[] }>({
-    queryKey: ["/api/stripe/products-with-prices"],
+  const { data: plansData, isLoading } = useQuery<{ data: Plan[] }>({
+    queryKey: ["/api/mercadopago/plans"],
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const response = await apiRequest("POST", "/api/stripe/checkout", { priceId });
+    mutationFn: async (planId: string) => {
+      const response = await apiRequest("POST", "/api/mercadopago/checkout", { planId });
       return await response.json();
     },
     onSuccess: (data) => {
@@ -56,7 +48,7 @@ export default function Pricing() {
     },
   });
 
-  const formatPrice = (amount: number, currency: string) => {
+  const formatPrice = (amountCentavos: number) => {
     const locale =
       language === "pt"
         ? "pt-BR"
@@ -72,11 +64,11 @@ export default function Pricing() {
 
     return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency.toUpperCase(),
-    }).format(amount / 100);
+      currency: 'BRL',
+    }).format(amountCentavos / 100);
   };
 
-  const getTierIcon = (tier?: string) => {
+  const getTierIcon = (tier: string) => {
     switch (tier) {
       case 'basic': return <Sparkles className="h-6 w-6" />;
       case 'premium': return <Crown className="h-6 w-6" />;
@@ -85,7 +77,7 @@ export default function Pricing() {
     }
   };
 
-  const getTierColor = (tier?: string) => {
+  const getTierColor = (tier: string) => {
     switch (tier) {
       case 'basic': return 'text-blue-500';
       case 'premium': return 'text-amber-500';
@@ -94,7 +86,7 @@ export default function Pricing() {
     }
   };
 
-  const getFeatures = (tier?: string) => {
+  const getFeatures = (tier: string) => {
     switch (tier) {
       case 'basic':
         return [
@@ -125,53 +117,29 @@ export default function Pricing() {
     }
   };
 
-  const products = productsData?.data || [];
+  const plans = plansData?.data || [];
 
-  const getPriceByInterval = (product: Product, interval: "month" | "year") => {
-    return product.prices.find((p) => p.recurring?.interval === interval) ?? null;
-  };
-
-  const intervalLabel =
-    billingInterval === "year" ? t("pricing.interval.yearSuffix") : t("pricing.interval.monthSuffix");
-
-  const sortedProducts = useMemo(() => {
-    return [...products].sort((a, b) => {
-      const priceA = getPriceByInterval(a, billingInterval)?.unit_amount ?? 0;
-      const priceB = getPriceByInterval(b, billingInterval)?.unit_amount ?? 0;
-      return priceA - priceB;
-    });
-  }, [products, billingInterval]);
+  const sortedPlans = useMemo(() => {
+    return [...plans].sort((a, b) => a.amountBrl - b.amountBrl);
+  }, [plans]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
+
       <main className="flex-1 container mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">{t("pricing.title")}</h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             {t("pricing.subtitle")}
           </p>
-        </div>
-
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex rounded-md border bg-background p-1">
-            <Button
-              type="button"
-              variant={billingInterval === "month" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setBillingInterval("month")}
-            >
-              {t("pricing.interval.month")}
-            </Button>
-            <Button
-              type="button"
-              variant={billingInterval === "year" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setBillingInterval("year")}
-            >
-              {t("pricing.interval.year")}
-            </Button>
+          <div className="flex items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <CreditCard className="h-4 w-4" /> Cartão
+            </span>
+            <span className="flex items-center gap-1">
+              <QrCode className="h-4 w-4" /> Pix
+            </span>
           </div>
         </div>
 
@@ -215,7 +183,7 @@ export default function Pricing() {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : sortedProducts.length === 0 ? (
+        ) : sortedPlans.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
               {t("pricing.comingSoon")}
@@ -223,16 +191,14 @@ export default function Pricing() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {sortedProducts.map((product) => {
-              const tier = product.metadata?.tier;
-              const price = getPriceByInterval(product, billingInterval);
-              const isPopular = tier === 'premium';
+            {sortedPlans.map((plan) => {
+              const isPopular = plan.tier === 'premium';
 
               return (
-                <Card 
-                  key={product.id} 
+                <Card
+                  key={plan.id}
                   className={`relative ${isPopular ? 'border-primary shadow-lg scale-105' : ''}`}
-                  data-testid={`card-plan-${tier}`}
+                  data-testid={`card-plan-${plan.tier}`}
                 >
                   {isPopular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
@@ -240,23 +206,21 @@ export default function Pricing() {
                     </Badge>
                   )}
                   <CardHeader className="text-center pb-2">
-                    <div className={`mx-auto mb-2 ${getTierColor(tier)}`}>
-                      {getTierIcon(tier)}
+                    <div className={`mx-auto mb-2 ${getTierColor(plan.tier)}`}>
+                      {getTierIcon(plan.tier)}
                     </div>
-                    <CardTitle className="text-xl">{product.name}</CardTitle>
-                    <CardDescription>{product.description}</CardDescription>
+                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="text-center">
-                    {price && (
-                      <div className="mb-6">
-                        <span className="text-4xl font-bold">
-                          {formatPrice(price.unit_amount, price.currency)}
-                        </span>
-                        <span className="text-muted-foreground">{intervalLabel}</span>
-                      </div>
-                    )}
+                    <div className="mb-6">
+                      <span className="text-4xl font-bold">
+                        {formatPrice(plan.amountBrl)}
+                      </span>
+                      <span className="text-muted-foreground">{t("pricing.interval.monthSuffix")}</span>
+                    </div>
                     <ul className="text-sm space-y-3 text-left">
-                      {getFeatures(tier).map((feature, index) => (
+                      {getFeatures(plan.tier).map((feature, index) => (
                         <li key={index} className="flex items-center gap-2">
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
                           <span>{feature}</span>
@@ -265,12 +229,12 @@ export default function Pricing() {
                     </ul>
                   </CardContent>
                   <CardFooter>
-                    <Button 
-                      className="w-full" 
+                    <Button
+                      className="w-full"
                       variant={isPopular ? 'default' : 'outline'}
-                      onClick={() => price && checkoutMutation.mutate(price.id)}
-                      disabled={!price || checkoutMutation.isPending}
-                      data-testid={`button-subscribe-${tier}`}
+                      onClick={() => checkoutMutation.mutate(plan.id)}
+                      disabled={checkoutMutation.isPending}
+                      data-testid={`button-subscribe-${plan.tier}`}
                     >
                       {checkoutMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />

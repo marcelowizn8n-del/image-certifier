@@ -23,7 +23,7 @@ const allowlist = [
   "passport",
   "passport-local",
   "pg",
-  "stripe",
+  "mercadopago",
   "uuid",
   "ws",
   "xlsx",

@@ -6,8 +6,9 @@ import {
   type VideoAnalysisResult, FREE_ANALYSIS_LIMIT, type AnalysisResult,
   apiKeys, apiKeyUsageMonthly
 } from "@shared/schema";
-import { stripeService } from "./stripeService";
-import { getStripePublishableKey } from "./stripeClient";
+import { mercadoPagoService } from "./mercadoPagoService";
+import { getMercadoPagoPublicKey } from "./mercadoPagoClient";
+import { mpPlans, mpSubscriptions } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, sql } from "drizzle-orm";
 import { analysisFeedback } from "@shared/schema";
@@ -994,186 +995,91 @@ export async function registerRoutes(
     });
   });
 
-  // Stripe routes
-  app.get("/api/stripe/publishable-key", async (req, res) => {
+  // Mercado Pago routes
+  app.get("/api/mercadopago/public-key", async (_req, res) => {
     try {
-      const publishableKey = await getStripePublishableKey();
-      res.json({ publishableKey });
+      const publicKey = getMercadoPagoPublicKey();
+      res.json({ publicKey });
     } catch (error) {
-      console.error("Error getting Stripe publishable key:", error);
-      res.status(500).json({ message: "Failed to get Stripe key" });
+      console.error("Error getting Mercado Pago public key:", error);
+      res.status(500).json({ message: "Failed to get Mercado Pago key" });
     }
   });
 
-  app.get("/api/stripe/products", async (req, res) => {
+  app.get("/api/mercadopago/plans", async (_req, res) => {
     try {
-      const result = await db.execute(
-        sql`SELECT * FROM stripe.products WHERE active = true`
-      );
-      res.json({ data: result.rows });
+      const plans = await db
+        .select()
+        .from(mpPlans)
+        .where(eq(mpPlans.active, true))
+        .orderBy(mpPlans.amountBrl);
+      res.json({ data: plans });
     } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
     }
   });
 
-  app.get("/api/stripe/products-with-prices", async (req, res) => {
+  // Seed plans (admin only - for initial setup)
+  app.post("/api/mercadopago/seed-plans", adminAuthMiddleware, async (_req, res) => {
     try {
-      const result = await db.execute(
-        sql`
-          SELECT 
-            p.id as product_id,
-            p.name as product_name,
-            p.description as product_description,
-            p.active as product_active,
-            p.metadata as product_metadata,
-            pr.id as price_id,
-            pr.unit_amount,
-            pr.currency,
-            pr.recurring,
-            pr.active as price_active
-          FROM stripe.products p
-          LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-          WHERE p.active = true
-          ORDER BY pr.unit_amount ASC
-        `
-      );
-
-      if (!result.rows || result.rows.length === 0) {
-        try {
-          const { getUncachableStripeClient } = await import("./stripeClient");
-          const stripe = await getUncachableStripeClient();
-
-          const stripeProducts = await stripe.products.list({
-            active: true,
-            limit: 100,
-          });
-
-          const productsWithPrices = await Promise.all(
-            stripeProducts.data.map(async (p) => {
-              const prices = await stripe.prices.list({
-                active: true,
-                product: p.id,
-                limit: 100,
-              });
-
-              return {
-                id: p.id,
-                name: p.name,
-                description: p.description || "",
-                active: p.active,
-                metadata: (p.metadata || {}) as any,
-                prices: prices.data.map((pr) => ({
-                  id: pr.id,
-                  unit_amount: pr.unit_amount || 0,
-                  currency: pr.currency,
-                  recurring: pr.recurring
-                    ? { interval: pr.recurring.interval }
-                    : null,
-                  active: pr.active,
-                })),
-              };
-            })
-          );
-
-          return res.json({ data: productsWithPrices });
-        } catch (fallbackError) {
-          console.error("Error fetching products/prices from Stripe API:", fallbackError);
-        }
-      }
-
-      // Group prices by product
-      const productsMap = new Map();
-      for (const row of result.rows as any[]) {
-        if (!productsMap.has(row.product_id)) {
-          productsMap.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            description: row.product_description,
-            active: row.product_active,
-            metadata: row.product_metadata,
-            prices: []
-          });
-        }
-        if (row.price_id) {
-          productsMap.get(row.product_id).prices.push({
-            id: row.price_id,
-            unit_amount: row.unit_amount,
-            currency: row.currency,
-            recurring: row.recurring,
-            active: row.price_active,
-          });
-        }
-      }
-
-      res.json({ data: Array.from(productsMap.values()) });
-    } catch (error) {
-      console.error("Error fetching products with prices:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-
-  // Seed products (admin only - for initial setup)
-  app.post("/api/stripe/seed-products", async (req, res) => {
-    try {
-      const { getUncachableStripeClient } = await import('./stripeClient');
-      const stripe = await getUncachableStripeClient();
-
-      const products = [
+      const host = 'https://www.imgcertifier.app';
+      const planDefs = [
         {
           name: 'Basic',
           description: '100 análises por mês com histórico completo',
-          metadata: { tier: 'basic', analysisLimit: '100' },
+          tier: 'basic' as const,
           price: 1990, // R$19.90 in centavos
         },
         {
           name: 'Premium',
           description: 'Análises ilimitadas com API access',
-          metadata: { tier: 'premium', analysisLimit: 'unlimited' },
+          tier: 'premium' as const,
           price: 4990, // R$49.90 in centavos
         },
         {
           name: 'Enterprise',
           description: 'Múltiplos usuários com suporte dedicado',
-          metadata: { tier: 'enterprise', analysisLimit: 'unlimited' },
+          tier: 'enterprise' as const,
           price: 19990, // R$199.90 in centavos
-        }
+        },
       ];
 
       const results = [];
 
-      for (const prod of products) {
-        // Create product
-        const product = await stripe.products.create({
-          name: prod.name,
-          description: prod.description,
-          metadata: prod.metadata,
+      for (const plan of planDefs) {
+        const mpPlan = await mercadoPagoService.createPlan({
+          name: `Image Certifier - ${plan.name}`,
+          description: plan.description,
+          amount: plan.price,
+          backUrl: `${host}/pricing`,
         });
 
-        // Create price
-        const price = await stripe.prices.create({
-          product: product.id,
-          unit_amount: prod.price,
-          currency: 'brl',
-          recurring: { interval: 'month' },
+        // Save to local database
+        await db.insert(mpPlans).values({
+          mpPlanId: mpPlan.id!,
+          name: plan.name,
+          description: plan.description,
+          tier: plan.tier,
+          amountBrl: plan.price,
         });
 
-        results.push({ product: product.id, price: price.id, name: prod.name });
+        results.push({ mpPlanId: mpPlan.id, name: plan.name, tier: plan.tier });
       }
 
-      res.json({ success: true, products: results });
+      res.json({ success: true, plans: results });
     } catch (error: any) {
-      console.error("Error seeding products:", error);
-      res.status(500).json({ message: error.message || "Failed to seed products" });
+      console.error("Error seeding plans:", error);
+      res.status(500).json({ message: error.message || "Failed to seed plans" });
     }
   });
 
-  app.post("/api/stripe/checkout", requireAuth, async (req, res) => {
+  app.post("/api/mercadopago/checkout", requireAuth, async (req, res) => {
     try {
-      const { priceId, email } = req.body;
+      const { planId } = req.body;
 
-      if (!priceId) {
-        return res.status(400).json({ message: "Price ID is required" });
+      if (!planId) {
+        return res.status(400).json({ message: "Plan ID is required" });
       }
 
       const userId = (req.user as any).id as string;
@@ -1182,29 +1088,31 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Reuse Stripe customer when available, else create one tied to this user.
-      const customer = user.stripeCustomerId
-        ? { id: user.stripeCustomerId }
-        : await stripeService.createCustomer(email || user.email, userId);
+      // Look up the plan
+      const plan = await db
+        .select()
+        .from(mpPlans)
+        .where(eq(mpPlans.id, planId))
+        .limit(1);
 
-      if (!user.stripeCustomerId) {
-        await storage.updateUser(userId, { stripeCustomerId: customer.id });
+      if (!plan.length) {
+        return res.status(404).json({ message: "Plan not found" });
       }
 
-      // Create checkout session
-      const host = req.get('host') || 'imgcertifier.app';
-      const baseUrl = `https://${host}`;
-      const session = await stripeService.createCheckoutSession(
-        customer.id,
-        priceId,
-        `${baseUrl}/checkout/success`,
-        `${baseUrl}/pricing`
-      );
+      const host = req.get('host') || 'www.imgcertifier.app';
+      const backUrl = `https://${host}/pricing`;
 
-      res.json({ url: session.url });
+      const subscription = await mercadoPagoService.createSubscriptionCheckout({
+        planId: plan[0].mpPlanId,
+        payerEmail: user.email,
+        userId,
+        backUrl,
+      });
+
+      res.json({ url: subscription.init_point });
     } catch (error: any) {
-      console.error("Error creating checkout session:", error);
-      res.status(500).json({ message: error.message || "Failed to create checkout session" });
+      console.error("Error creating checkout:", error);
+      res.status(500).json({ message: error.message || "Failed to create checkout" });
     }
   });
 
@@ -1244,30 +1152,31 @@ export async function registerRoutes(
     }
   });
 
-  // Admin: Get all Stripe customers with subscriptions
-  app.get("/api/admin/customers", adminAuthMiddleware, async (req, res) => {
+  // Admin: Get all subscribers
+  app.get("/api/admin/customers", adminAuthMiddleware, async (_req, res) => {
     try {
       const result = await db.execute(
         sql`
-          SELECT 
-            c.id as customer_id,
-            c.email,
-            c.name,
-            c.created,
-            c.metadata,
+          SELECT
+            u.id as user_id,
+            u.email,
+            u.username,
+            u.created_at,
+            u.is_premium,
             s.id as subscription_id,
+            s.mp_subscription_id,
             s.status as subscription_status,
-            s.current_period_start,
-            s.current_period_end,
-            s.cancel_at_period_end,
-            p.name as product_name,
-            pr.unit_amount,
-            pr.currency
-          FROM stripe.customers c
-          LEFT JOIN stripe.subscriptions s ON s.customer = c.id
-          LEFT JOIN stripe.prices pr ON s.items @> jsonb_build_array(jsonb_build_object('price', pr.id))
-          LEFT JOIN stripe.products p ON pr.product = p.id
-          ORDER BY c.created DESC
+            s.payer_email,
+            s.created_at as sub_created_at,
+            s.updated_at as sub_updated_at,
+            p.name as plan_name,
+            p.amount_brl,
+            p.tier
+          FROM users u
+          LEFT JOIN mp_subscriptions s ON s.user_id = u.id
+          LEFT JOIN mp_plans p ON p.mp_plan_id = s.mp_plan_id
+          WHERE s.id IS NOT NULL
+          ORDER BY s.created_at DESC
         `
       );
       res.json({ data: result.rows });
@@ -1278,22 +1187,30 @@ export async function registerRoutes(
   });
 
   // Admin: Get subscription stats
-  app.get("/api/admin/subscription-stats", adminAuthMiddleware, async (req, res) => {
+  app.get("/api/admin/subscription-stats", adminAuthMiddleware, async (_req, res) => {
     try {
-      const customersResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.customers`);
-      const activeSubsResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.subscriptions WHERE status = 'active'`);
-      const canceledSubsResult = await db.execute(sql`SELECT COUNT(*) as count FROM stripe.subscriptions WHERE status = 'canceled'`);
-      const revenueResult = await db.execute(sql`
-        SELECT COALESCE(SUM(pr.unit_amount), 0) as mrr
-        FROM stripe.subscriptions s
-        JOIN stripe.prices pr ON s.items @> jsonb_build_array(jsonb_build_object('price', pr.id))
-        WHERE s.status = 'active'
-      `);
+      const totalResult = await db.execute(
+        sql`SELECT COUNT(DISTINCT user_id) as count FROM mp_subscriptions`
+      );
+      const activeResult = await db.execute(
+        sql`SELECT COUNT(*) as count FROM mp_subscriptions WHERE status = 'authorized'`
+      );
+      const canceledResult = await db.execute(
+        sql`SELECT COUNT(*) as count FROM mp_subscriptions WHERE status = 'cancelled'`
+      );
+      const revenueResult = await db.execute(
+        sql`
+          SELECT COALESCE(SUM(p.amount_brl), 0) as mrr
+          FROM mp_subscriptions s
+          JOIN mp_plans p ON p.mp_plan_id = s.mp_plan_id
+          WHERE s.status = 'authorized'
+        `
+      );
 
       res.json({
-        totalCustomers: parseInt((customersResult.rows[0] as any)?.count || '0'),
-        activeSubscriptions: parseInt((activeSubsResult.rows[0] as any)?.count || '0'),
-        canceledSubscriptions: parseInt((canceledSubsResult.rows[0] as any)?.count || '0'),
+        totalCustomers: parseInt((totalResult.rows[0] as any)?.count || '0'),
+        activeSubscriptions: parseInt((activeResult.rows[0] as any)?.count || '0'),
+        canceledSubscriptions: parseInt((canceledResult.rows[0] as any)?.count || '0'),
         monthlyRevenue: parseInt((revenueResult.rows[0] as any)?.mrr || '0'),
       });
     } catch (error) {
@@ -1302,61 +1219,24 @@ export async function registerRoutes(
     }
   });
 
-  // Admin: Update product price (creates new price in Stripe)
-  app.post("/api/admin/update-price", adminAuthMiddleware, async (req, res) => {
-    try {
-      const { productId, newAmount, currency = 'brl' } = req.body;
-
-      if (!productId || !newAmount) {
-        return res.status(400).json({ message: "Product ID and new amount are required" });
-      }
-
-      const { getUncachableStripeClient } = await import('./stripeClient');
-      const stripe = await getUncachableStripeClient();
-
-      // Deactivate old price
-      const oldPrices = await stripe.prices.list({ product: productId, active: true });
-      for (const oldPrice of oldPrices.data) {
-        await stripe.prices.update(oldPrice.id, { active: false });
-      }
-
-      // Create new price
-      const newPrice = await stripe.prices.create({
-        product: productId,
-        unit_amount: Math.round(newAmount * 100), // Convert to centavos
-        currency,
-        recurring: { interval: 'month' },
-      });
-
-      res.json({ success: true, price: newPrice });
-    } catch (error: any) {
-      console.error("Error updating price:", error);
-      res.status(500).json({ message: error.message || "Failed to update price" });
-    }
-  });
-
   // Admin: Cancel subscription
   app.post("/api/admin/cancel-subscription", adminAuthMiddleware, async (req, res) => {
     try {
-      const { subscriptionId, immediately = false } = req.body;
+      const { subscriptionId } = req.body;
 
       if (!subscriptionId) {
         return res.status(400).json({ message: "Subscription ID is required" });
       }
 
-      const { getUncachableStripeClient } = await import('./stripeClient');
-      const stripe = await getUncachableStripeClient();
+      const result = await mercadoPagoService.cancelSubscription(subscriptionId);
 
-      let subscription;
-      if (immediately) {
-        subscription = await stripe.subscriptions.cancel(subscriptionId);
-      } else {
-        subscription = await stripe.subscriptions.update(subscriptionId, {
-          cancel_at_period_end: true,
-        });
-      }
+      // Update local record
+      await db
+        .update(mpSubscriptions)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(eq(mpSubscriptions.mpSubscriptionId, subscriptionId));
 
-      res.json({ success: true, subscription });
+      res.json({ success: true, subscription: result });
     } catch (error: any) {
       console.error("Error canceling subscription:", error);
       res.status(500).json({ message: error.message || "Failed to cancel subscription" });
@@ -1372,14 +1252,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Subscription ID is required" });
       }
 
-      const { getUncachableStripeClient } = await import('./stripeClient');
-      const stripe = await getUncachableStripeClient();
+      const result = await mercadoPagoService.reactivateSubscription(subscriptionId);
 
-      const subscription = await stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: false,
-      });
+      // Update local record
+      await db
+        .update(mpSubscriptions)
+        .set({ status: 'authorized', updatedAt: new Date() })
+        .where(eq(mpSubscriptions.mpSubscriptionId, subscriptionId));
 
-      res.json({ success: true, subscription });
+      res.json({ success: true, subscription: result });
     } catch (error: any) {
       console.error("Error reactivating subscription:", error);
       res.status(500).json({ message: error.message || "Failed to reactivate subscription" });

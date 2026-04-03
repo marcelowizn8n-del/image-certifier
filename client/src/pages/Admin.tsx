@@ -37,19 +37,21 @@ import { toast } from "sonner";
 
 type SafeUser = Omit<User, 'password'>;
 
-interface StripeCustomer {
-  customer_id: string;
+interface MpSubscriber {
+  user_id: string;
   email: string;
-  name: string | null;
-  created: string;
+  username: string | null;
+  created_at: string;
+  is_premium: boolean;
   subscription_id: string | null;
+  mp_subscription_id: string | null;
   subscription_status: string | null;
-  current_period_start: string | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean | null;
-  product_name: string | null;
-  unit_amount: number | null;
-  currency: string | null;
+  payer_email: string | null;
+  sub_created_at: string | null;
+  sub_updated_at: string | null;
+  plan_name: string | null;
+  amount_brl: number | null;
+  tier: string | null;
 }
 
 type AnalysisFeedbackLabel = "original" | "ai_generated" | "ai_modified" | "uncertain";
@@ -144,7 +146,7 @@ export default function Admin() {
     queryKey: ["/api/users"],
   });
 
-  const { data: customersData } = useQuery<{ data: StripeCustomer[] }>({
+  const { data: customersData } = useQuery<{ data: MpSubscriber[] }>({
     queryKey: ["/api/admin/customers"],
     enabled: isAuthenticated,
   });
@@ -155,7 +157,7 @@ export default function Admin() {
   });
 
   const { data: productsData } = useQuery<{ data: ProductWithPrices[] }>({
-    queryKey: ["/api/stripe/products-with-prices"],
+    queryKey: ["/api/mercadopago/plans"],
   });
 
   const { data: feedbackData } = useQuery<{ data: AnalysisFeedbackRow[] }>({
@@ -233,7 +235,7 @@ export default function Admin() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/stripe/products-with-prices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/mercadopago/plans"] });
       setEditingPrice(null);
       setNewPriceValue("");
       toast.success("Preço atualizado");
@@ -279,11 +281,10 @@ export default function Admin() {
   const getStatusBadge = (status: string | null) => {
     if (!status) return null;
     const colors: Record<string, string> = {
-      active: 'bg-green-500/10 text-green-500 border-green-500/20',
-      canceled: 'bg-red-500/10 text-red-500 border-red-500/20',
-      past_due: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-      unpaid: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-      trialing: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      authorized: 'bg-green-500/10 text-green-500 border-green-500/20',
+      cancelled: 'bg-red-500/10 text-red-500 border-red-500/20',
+      paused: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+      pending: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
     };
     return (
       <Badge className={colors[status] || 'bg-gray-500/10 text-gray-500'}>
@@ -426,7 +427,7 @@ export default function Admin() {
                   Clientes e Assinaturas
                 </CardTitle>
                 <CardDescription>
-                  Gerencie os clientes e suas assinaturas do Stripe
+                  Gerencie os clientes e suas assinaturas do Mercado Pago
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -468,7 +469,7 @@ export default function Admin() {
                                 <p>Início: {formatDate(customer.current_period_start)}</p>
                                 <p>Fim: {formatDate(customer.current_period_end)}</p>
                               </div>
-                              {customer.subscription_status === 'active' && (
+                              {customer.subscription_status === 'authorized' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -520,7 +521,7 @@ export default function Admin() {
               <CardContent>
                 {products.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    Nenhum produto encontrado. Execute POST /api/stripe/seed-products para criar.
+                    Nenhum plano encontrado. Execute POST /api/mercadopago/seed-plans para criar.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -561,7 +562,7 @@ export default function Admin() {
                                     <DialogHeader>
                                       <DialogTitle>Editar Preço - {product.name}</DialogTitle>
                                       <DialogDescription>
-                                        Defina o novo valor mensal. Isso criará um novo preço no Stripe.
+                                        Defina o novo valor mensal. Isso criará um novo plano no Mercado Pago.
                                       </DialogDescription>
                                     </DialogHeader>
                                     <div className="py-4">
