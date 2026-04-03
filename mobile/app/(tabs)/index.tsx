@@ -36,6 +36,7 @@ export default function UploadScreen() {
   const [hasAiConsent, setHasAiConsent] = useState<boolean | null>(null);
   const [consentModalVisible, setConsentModalVisible] = useState(false);
   const [pendingAnalyze, setPendingAnalyze] = useState(false);
+  const [consentAcknowledged, setConsentAcknowledged] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,11 +69,16 @@ export default function UploadScreen() {
     if (!consentLoaded) return false;
     if (hasAiConsent === true) return true;
 
+    setConsentAcknowledged(false);
     setConsentModalVisible(true);
     return false;
   };
 
   const handleConsentDecision = async (decision: 'granted' | 'denied') => {
+    if (decision === 'granted' && !consentAcknowledged) {
+      return;
+    }
+
     try {
       await AsyncStorage.setItem(AI_CONSENT_STORAGE_KEY, decision);
     } catch {
@@ -212,7 +218,7 @@ export default function UploadScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       <Modal
         visible={consentModalVisible}
         transparent
@@ -221,12 +227,28 @@ export default function UploadScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Consent Required
-            </Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Consent Required</Text>
             <Text style={[styles.modalText, { color: colors.textSecondary }]}>
-              When you tap Analyze, the selected image will be uploaded to our server and may be processed by third-party AI services (OpenAI and SightEngine) to provide the authenticity result. If present, we may also send technical image metadata (such as EXIF). This data is not used for advertising or tracking.
+              Before analysis, we ask your permission to process data needed to generate an authenticity result.
             </Text>
+
+            <View style={styles.modalList}>
+              <Text style={[styles.modalListItem, { color: colors.textSecondary }]}>• Data sent: selected image or image URL, file information, and available technical metadata (such as EXIF).</Text>
+              <Text style={[styles.modalListItem, { color: colors.textSecondary }]}>• Recipients: Image Certifier servers and third-party AI providers (OpenAI and Sightengine).</Text>
+              <Text style={[styles.modalListItem, { color: colors.textSecondary }]}>• Purpose: image authenticity analysis only (not used for advertising).</Text>
+              <Text style={[styles.modalListItem, { color: colors.textSecondary }]}>• Control: you can revoke this consent anytime in Settings.</Text>
+            </View>
+
+            <TouchableOpacity onPress={() => setConsentAcknowledged((value) => !value)} style={styles.modalCheckboxRow}>
+              <Ionicons
+                name={consentAcknowledged ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={consentAcknowledged ? colors.primary : colors.textSecondary}
+              />
+              <Text style={[styles.modalCheckboxText, { color: colors.text }]}>I understand and agree to data processing for image authenticity analysis.</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.modalHintText, { color: colors.textTertiary }]}>Read our policy for full details on collection, sharing, and retention.</Text>
 
             <TouchableOpacity onPress={openPrivacyPolicy} style={styles.modalLinkRow}>
               <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
@@ -241,8 +263,13 @@ export default function UploadScreen() {
                 <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary },
+                  !consentAcknowledged && styles.modalButtonDisabled,
+                ]}
                 onPress={() => void handleConsentDecision('granted')}
+                disabled={!consentAcknowledged}
               >
                 <Text style={[styles.modalButtonText, { color: colors.primaryForeground }]}>I Agree</Text>
               </TouchableOpacity>
@@ -472,7 +499,15 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 10,
+  },
+  modalList: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  modalListItem: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalLinkRow: {
     flexDirection: 'row',
@@ -483,6 +518,23 @@ const styles = StyleSheet.create({
   modalLinkText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  modalCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 4,
+    marginBottom: 8,
+  },
+  modalCheckboxText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalHintText: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
   },
   modalActions: {
     flexDirection: 'row',
@@ -499,6 +551,9 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
   },
   scrollContent: {
     padding: 20,

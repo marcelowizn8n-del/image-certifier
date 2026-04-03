@@ -41,7 +41,7 @@ Image Certifier
 
 **Subtítulo:**
 ```
-Autenticidade de Imagem com IA
+Verificação Confiável de Imagens
 ```
 
 **Categoria Primária:**
@@ -90,7 +90,7 @@ COMO FUNCIONA:
 3. Veja o nível de autenticidade detectado
 
 TRANSPARÊNCIA DIGITAL:
-Use o Image Certifier para ter mais clareza sobre o conteúdo visual que você consome. Proteja sua percepção digital com verificação técnica.
+Use o Image Certifier para ter mais clareza sobre conteúdo visual com uma análise técnica e responsável.
 
 Desenvolvido por MFA Developer.
 ```
@@ -121,10 +121,10 @@ Use Image Certifier to gain more clarity about the visual content you consume. P
 Developed by MFA Developer.
 ```
 
-## Palavras-chave (máximo 100 caracteres)
+## Palavras-chave App Store (máximo 100 caracteres)
 
 ```
-IA,AI,autenticidade,imagem,verificar,verificação,foto,digital,media,tecnologia
+image authenticity,photo verification,content integrity,digital trust,metadata analysis
 ```
 
 ## Novidades desta Versão

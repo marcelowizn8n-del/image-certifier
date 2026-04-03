@@ -32,10 +32,6 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id"
-      },
       "android": {
         "serviceAccountKeyPath": "./google-services.json",
         "track": "internal"

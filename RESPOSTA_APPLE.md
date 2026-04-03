@@ -1,29 +1,68 @@
-# Resposta para a Apple (App Store Connect)
+# App Store Connect - Suggested Reply to Apple Review
 
-Você pode enviar esta mensagem através do App Store Connect, no centro de resoluções ou como uma nota de revisão.
+Use the text below in the Resolution Center (you can adapt app/version details if needed).
 
 ---
 
 **Dear App Store Review Team,**
 
-We have addressed the issues cited in the latest review regarding Guidelines 1.1 (Safety), 3.1.1 (Payments), and 2.1 (Privacy). Below is a summary of the changes implemented:
+Thank you for the feedback. We implemented changes to address all cited items.
 
-### 1. Safety & Objectionable Content (Guideline 1.1)
-We have thoroughly revised the app's metadata, keywords, and in-app content. We have transitioned away from terms such as "Deepfake" and "Fake News," replacing them with technical, neutral terminology: **"Synthetic Content Analysis"** and **"Digital Authenticity Verification."** This shift ensures the platform focusing on technical media certification rather than the generation or promotion of objectionable content.
+## 1) Guideline 1.1 - Safety / Objectionable Content
 
-### 2. Payments - In-App Purchase (Guideline 3.1.1)
-We have fully integrated **In-App Purchases (IAP)** for all digital services and premium subscriptions within the iOS app. Users can now securely subscribe directly through the App Store. Our backend now includes a dedicated verification service to validate Apple receipts before granting access to premium features.
+We updated App Store metadata to remove wording that could imply objectionable content. We now use neutral, technical language focused on image authenticity verification and content integrity.
 
-### 3. Privacy - Face Data Disclosure (Guideline 2.1)
-We have updated our Privacy Policy and in-app disclosures to provide explicit transparency regarding the use of facial analysis:
-- **Data Collection**: The app analyzes facial landmarks and geometry from uploaded media solely to detect patterns of AI generation or digital manipulation.
-- **Usage**: This data is used exclusively to generate an "Authenticity Score" for the user.
-- **Sharing**: Processing is performed via secure API channels (OpenAI) that comply with non-training privacy standards. No data is shared with third parties for marketing or other purposes.
-- **Retention**: Data is stored only within the user's private analysis history and is deleted if the user deletes their account or history.
+Updated fields include promotional text, keywords, and marketing copy.
 
-Our updated Privacy Policy can be found at: [https://www.imgcertifier.app/privacy](https://www.imgcertifier.app/privacy) (ou o link atualizado do seu site).
+## 2) Guidelines 5.1.1(i) and 5.1.2(i) - Privacy / AI data sharing
 
-We believe these changes bring the app into full compliance with the App Store Review Guidelines and look forward to your positive review.
+Before any analysis request is sent, the iOS app now shows a dedicated consent modal that clearly discloses:
 
-**Best regards,**
+- what data is sent (image or image URL, file details, and available technical metadata such as EXIF),
+- who receives data (Image Certifier backend and third-party AI providers OpenAI and Sightengine),
+- purpose of processing (image authenticity analysis only),
+- explicit user action required to proceed ("I Agree"),
+- privacy policy link,
+- ability to revoke consent later in Settings.
+
+If the user does not consent, analysis is not sent.
+
+We also updated our privacy policy to explicitly describe collection, processing, sharing, and retention.
+
+## 3) Guideline 3.1.1 - In-App Purchase
+
+Paid digital functionality is available for purchase in iOS via Apple In-App Purchase subscriptions in-app. The iOS app supports purchase and restore flows through StoreKit.
+
+## 4) Guideline 2.1 - Information needed about face data
+
+Below are complete answers to the requested questions:
+
+1. **What face data does the app collect?**  
+   The app may process facial visual characteristics present in submitted images (for example: facial geometry/proportions, landmarks, skin texture, and lighting consistency signals) as part of authenticity analysis.
+
+2. **Planned uses of face data**  
+   Face-related visual signals are used only to generate an authenticity result requested by the user. They are not used for identity verification, recognition, profiling, advertising, or unrelated analytics.
+
+3. **Will face data be shared with third parties? Where stored?**  
+   For analysis delivery, submitted image data and required technical metadata may be processed by our backend and third-party AI providers (OpenAI and Sightengine) over encrypted HTTPS/TLS channels. We do not sell/share data for marketing.
+
+4. **How long is face data retained?**  
+   Face-related derived data is processed in real time and is not stored separately after analysis. Analysis outcomes are retained in the user's account history until deleted by the user. Account deletion removes associated data according to policy timelines.
+
+5. **Where is this explained in privacy policy?**  
+   It is described in these sections:
+   - "2. Face and Biometric Data"
+   - "4. Third-Party Services"
+   - "5. Data Retention"
+
+6. **Specific policy text (quoted)**
+   - "To detect possible synthetic manipulation in an image, our system may analyze facial visual characteristics present in the submitted image..."
+   - "When you authorize analysis, submitted image/URL and required technical metadata may be sent to these providers over encrypted connections (HTTPS/TLS), strictly to deliver the authenticity analysis you requested."
+   - "Derived face-related data: not stored separately after analysis."
+
+If needed, we can provide exact steps to reproduce the consent flow in-app.
+
+Thank you for your re-review.
+
+**Best regards,**  
 **Image Certifier Team**
