@@ -23,7 +23,7 @@ export async function analyzeWithHive(buffer: Buffer): Promise<HiveResult> {
     const response = await fetch('https://api.thehive.ai/api/v2/task/sync', {
       method: 'POST',
       headers: {
-        'Authorization': `Token ${HIVE_API_KEY}`,
+        'Authorization': `Bearer ${HIVE_API_KEY}`,
         'Accept': 'application/json',
       },
       body: formData,
