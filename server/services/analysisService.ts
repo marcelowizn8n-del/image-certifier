@@ -626,11 +626,21 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         // Otherwise, be fail-safe and return uncertain to avoid certifying AI artwork.
         const isNonPhotoLike = aiContentType !== "photo" && aiContentType !== "unknown";
 
-        // Hard blockers: if we see typical AI signals, do not certify as original.
+        // Hard blockers: only strong AI-specific signals block original certification.
+        // compression and colorAdjustment are common in HEIC->JPEG conversion and
+        // social media uploads, so they alone should NOT block original classification.
+        const strongAiArtifactCount = [
+            artifacts.unnaturalSmoothing,
+            artifacts.repetitivePatterns,
+            artifacts.noisePatterns,
+            artifacts.inconsistentLighting,
+            artifacts.edgeArtifacts,
+        ].filter(Boolean).length;
+
         const hasAiLikeSignals =
             artifacts.unnaturalSmoothing ||
             artifacts.repetitivePatterns ||
-            suspiciousArtifactCount >= 2;
+            strongAiArtifactCount >= 2;
 
         // Allow ORIGINAL with strong corroboration.
         // When GPT-4o is highly confident (>=85%) and no AI-like signals exist,
