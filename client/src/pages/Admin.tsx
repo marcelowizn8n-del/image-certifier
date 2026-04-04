@@ -72,17 +72,14 @@ interface SubscriptionStats {
   monthlyRevenue: number;
 }
 
-interface ProductWithPrices {
+interface MpPlan {
   id: string;
+  mpPlanId: string;
   name: string;
-  description: string;
+  description: string | null;
+  tier: string;
+  amountBrl: number;
   active: boolean;
-  prices: {
-    id: string;
-    unit_amount: number;
-    currency: string;
-    active: boolean;
-  }[];
 }
 
 export default function Admin() {
@@ -156,7 +153,7 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
-  const { data: productsData } = useQuery<{ data: ProductWithPrices[] }>({
+  const { data: productsData } = useQuery<{ data: MpPlan[] }>({
     queryKey: ["/api/mercadopago/plans"],
   });
 
@@ -525,80 +522,19 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {products.map((product) => (
-                      <Card key={product.id} className="border-primary/20">
+                    {products.map((plan) => (
+                      <Card key={plan.id} className="border-primary/20">
                         <CardHeader>
-                          <CardTitle className="text-lg">{product.name}</CardTitle>
-                          <CardDescription>{product.description}</CardDescription>
+                          <CardTitle className="text-lg">{plan.name}</CardTitle>
+                          <CardDescription>{plan.description}</CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-4">
-                            {product.prices.map((price) => (
-                              <div key={price.id} className="flex items-center justify-between">
-                                <span className="text-2xl font-bold text-primary">
-                                  {formatCurrency(price.unit_amount, price.currency)}
-                                  <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                                </span>
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => {
-                                        setEditingPrice({ 
-                                          productId: product.id, 
-                                          productName: product.name,
-                                          currentAmount: price.unit_amount / 100 
-                                        });
-                                        setNewPriceValue((price.unit_amount / 100).toString());
-                                      }}
-                                      data-testid={`button-edit-price-${product.id}`}
-                                    >
-                                      <Edit className="h-4 w-4 mr-1" />
-                                      Editar
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Editar Preço - {product.name}</DialogTitle>
-                                      <DialogDescription>
-                                        Defina o novo valor mensal. Isso criará um novo plano no Mercado Pago.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4">
-                                      <label className="text-sm font-medium">Novo Valor (R$)</label>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Ex: 29.90"
-                                        value={newPriceValue}
-                                        onChange={(e) => setNewPriceValue(e.target.value)}
-                                        className="mt-2"
-                                        data-testid="input-new-price"
-                                      />
-                                    </div>
-                                    <DialogFooter>
-                                      <Button
-                                        onClick={() => {
-                                          const amount = parseFloat(newPriceValue);
-                                          if (!isNaN(amount) && amount > 0) {
-                                            updatePriceMutation.mutate({ 
-                                              productId: product.id, 
-                                              newAmount: amount 
-                                            });
-                                          }
-                                        }}
-                                        disabled={updatePriceMutation.isPending}
-                                        data-testid="button-save-price"
-                                      >
-                                        <Save className="h-4 w-4 mr-2" />
-                                        {updatePriceMutation.isPending ? "Salvando..." : "Salvar"}
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
-                            ))}
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xl font-bold text-primary">
+                              {formatCurrency(plan.amountBrl, 'brl')}
+                              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                            </span>
+                            <Badge variant="outline">{plan.tier}</Badge>
                           </div>
                         </CardContent>
                       </Card>
