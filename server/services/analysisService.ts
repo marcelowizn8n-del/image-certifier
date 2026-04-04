@@ -632,17 +632,24 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             artifacts.repetitivePatterns ||
             suspiciousArtifactCount >= 2;
 
-        // Allow ORIGINAL only with strong corroboration.
-        // We do NOT require EXIF because many originals lose it (PNG exports, social apps, etc.).
+        // Allow ORIGINAL with strong corroboration.
+        // When GPT-4o is highly confident (>=85%) and no AI-like signals exist,
+        // relax technical thresholds since many real photos lose EXIF metadata.
+        const gptHighConfidence = aiAnalysis.confidence >= 85;
+        const requiredTechnical = gptHighConfidence ? 0.55 : 0.82;
+        const requiredNoise = gptHighConfidence ? 0.5 : 0.7;
+        const requiredArtifact = gptHighConfidence ? 0.7 : 0.8;
+        const needsExifOrProvider = gptHighConfidence ? false : true;
+
         const hasStrongOriginalEvidence =
             !hasAiLikeSignals &&
-            technicalScore >= 0.82 &&
-            noiseScore >= 0.7 &&
-            artifactScore >= 0.8 &&
-            (exif.hasExif || externalProviderSuggestsOriginal) &&
+            technicalScore >= requiredTechnical &&
+            noiseScore >= requiredNoise &&
+            artifactScore >= requiredArtifact &&
+            (!needsExifOrProvider || exif.hasExif || externalProviderSuggestsOriginal) &&
             (!isNonPhotoLike || (hasNonAiEvidence && finalConfidence >= 85));
 
-        if (hasStrongOriginalEvidence && finalConfidence >= 85) {
+        if (hasStrongOriginalEvidence && finalConfidence >= 80) {
             conservativeResult = "original";
             conservativeConfidence = finalConfidence;
         }
