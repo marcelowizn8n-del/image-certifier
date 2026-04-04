@@ -581,8 +581,12 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     if (exifScore < 0.15) aiSignals.push('low_exif');
     if (technicalScore < 0.65) aiSignals.push('low_technical');
     if (providersDetectingAI.length > 0) aiSignals.push(...providersDetectingAI);
+    // Suspiciously clean image (no artifacts at all) with no EXIF = likely AI
+    if (suspiciousArtifactCount === 0 && !exif.hasExif && artifactScore >= 0.95) aiSignals.push('too_clean');
+    // AI confidence from GPT-4o above 50% even if not classified as AI
+    if (aiAnalysis.confidence >= 50 && finalResult !== "ai_generated") aiSignals.push('gpt4o_suspects');
 
-    console.log(`[Analysis] AI signals: [${aiSignals.join(', ')}] (${aiSignals.length} total)`);
+    console.log(`[Analysis] AI signals: [${aiSignals.join(', ')}] (${aiSignals.length} total), finalResult=${finalResult}, finalConfidence=${finalConfidence}`);
 
     if (externalProviderSuggestsGenerated) {
         conservativeResult = "ai_generated";
@@ -598,6 +602,10 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             conservativeResult = "ai_generated";
             conservativeConfidence = Math.max(finalConfidence, Math.min(99, finalConfidence + aiSignals.length * 5));
         }
+    } else if (aiSignals.length >= 4 && finalConfidence >= 50) {
+        // Even if GPT-4o didn't classify as AI, if 4+ signals agree, classify as AI
+        conservativeResult = "ai_generated";
+        conservativeConfidence = Math.max(70, Math.min(99, finalConfidence + aiSignals.length * 5));
     } else if (finalResult === "ai_modified") {
         const hasStrongModificationEvidence =
             (elaScore >= 0.5) ||
