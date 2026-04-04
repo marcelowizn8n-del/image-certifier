@@ -226,14 +226,20 @@ if (!ADMIN_SECRET) {
 }
 
 const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  if (!ADMIN_SECRET) {
-    return res.status(500).json({ message: "Admin authentication not configured" });
-  }
-
-  const adminKey = req.headers['x-admin-key'] as string;
-  if (adminKey && adminKey === ADMIN_SECRET) {
+  // Allow logged-in admin users
+  const user = req.user as any;
+  if (user?.role === "admin") {
     return next();
   }
+
+  // Fallback to admin key header
+  if (ADMIN_SECRET) {
+    const adminKey = req.headers['x-admin-key'] as string;
+    if (adminKey && adminKey === ADMIN_SECRET) {
+      return next();
+    }
+  }
+
   return res.status(401).json({ message: "Unauthorized - Admin access required" });
 };
 

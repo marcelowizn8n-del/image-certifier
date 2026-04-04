@@ -85,6 +85,14 @@ interface MpPlan {
   active: boolean;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  isPremium: boolean;
+}
+
 export default function Admin() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
@@ -94,27 +102,49 @@ export default function Admin() {
   const [adminKey, setAdminKey] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // Check if user is logged in as admin
+  const { data: currentUser } = useQuery<AuthUser | null>({
+    queryKey: ["/api/me"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/me", { credentials: "include" });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
+  });
+
+  const isAdminUser = currentUser?.role === "admin";
+
   useEffect(() => {
-    const savedKey = localStorage.getItem('adminKey');
-    if (savedKey) {
+    // Auto-authenticate if logged in as admin
+    if (isAdminUser) {
       setIsAuthenticated(true);
+    } else {
+      const savedKey = localStorage.getItem('adminKey');
+      if (savedKey) {
+        setIsAuthenticated(true);
+      }
     }
-  }, []);
+  }, [isAdminUser]);
 
   const handleLogin = async () => {
     if (!adminKey.trim()) {
       toast.error("Digite a chave de admin");
       return;
     }
-    
+
     setIsLoggingIn(true);
     localStorage.setItem('adminKey', adminKey);
-    
+
     try {
       const res = await fetch('/api/admin/subscription-stats', {
         headers: { 'x-admin-key': adminKey }
       });
-      
+
       if (res.ok) {
         setIsAuthenticated(true);
         queryClient.invalidateQueries();
@@ -133,7 +163,9 @@ export default function Admin() {
 
   const handleLogout = () => {
     localStorage.removeItem('adminKey');
-    setIsAuthenticated(false);
+    if (!isAdminUser) {
+      setIsAuthenticated(false);
+    }
     setAdminKey("");
     toast.success("Desconectado do painel admin");
   };
