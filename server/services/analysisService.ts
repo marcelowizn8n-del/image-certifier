@@ -574,13 +574,29 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     let conservativeResult: AnalysisResult = "uncertain";
     let conservativeConfidence = Math.min(69, Math.max(50, finalConfidence));
 
+    // Count corroborating signals for AI generation
+    const aiSignals: string[] = [];
+    if (finalResult === "ai_generated" || finalResult === "ai_modified") aiSignals.push('gpt4o');
+    if (!exif.hasExif) aiSignals.push('no_exif');
+    if (exifScore < 0.15) aiSignals.push('low_exif');
+    if (technicalScore < 0.65) aiSignals.push('low_technical');
+    if (providersDetectingAI.length > 0) aiSignals.push(...providersDetectingAI);
+
+    console.log(`[Analysis] AI signals: [${aiSignals.join(', ')}] (${aiSignals.length} total)`);
+
     if (externalProviderSuggestsGenerated) {
         conservativeResult = "ai_generated";
-        conservativeConfidence = Math.max(conservativeConfidence, Math.round(sightEngine!.confidence));
+        const bestProviderConfidence = Math.max(
+            sightEngine?.isGenerated ? sightEngine.confidence : 0,
+            hive?.isGenerated ? hive.confidence : 0
+        );
+        conservativeConfidence = Math.max(conservativeConfidence, Math.round(bestProviderConfidence));
     } else if (finalResult === "ai_generated") {
-        if (finalConfidence >= 90) {
+        // Lower threshold when multiple signals agree
+        const requiredConfidence = aiSignals.length >= 4 ? 60 : aiSignals.length >= 3 ? 70 : 85;
+        if (finalConfidence >= requiredConfidence) {
             conservativeResult = "ai_generated";
-            conservativeConfidence = finalConfidence;
+            conservativeConfidence = Math.max(finalConfidence, Math.min(99, finalConfidence + aiSignals.length * 5));
         }
     } else if (finalResult === "ai_modified") {
         const hasStrongModificationEvidence =
@@ -588,9 +604,10 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             suspiciousArtifactCount >= 2 ||
             (suspiciousArtifactCount >= 1 && technicalScore <= 0.55);
 
-        if (hasStrongModificationEvidence && finalConfidence >= 90) {
+        const modRequiredConfidence = aiSignals.length >= 3 ? 65 : 80;
+        if (hasStrongModificationEvidence && finalConfidence >= modRequiredConfidence) {
             conservativeResult = "ai_modified";
-            conservativeConfidence = finalConfidence;
+            conservativeConfidence = Math.max(finalConfidence, Math.min(99, finalConfidence + aiSignals.length * 3));
         }
     } else if (finalResult === "original") {
         const aiContentType = aiAnalysis.contentType || "unknown";
