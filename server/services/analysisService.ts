@@ -3,6 +3,7 @@ import ExifParser from "exif-parser";
 import OpenAI from "openai";
 import { type AnalysisResult } from "@shared/schema";
 import { analyzeWithSightEngine, isSightEngineConfigured } from "./sightengineService";
+import { analyzeWithHive, isHiveConfigured } from "./hiveService";
 
 // Initialize OpenAI client for AI-powered analysis
 const openai = new OpenAI({
@@ -176,21 +177,23 @@ export async function analyzeELA(buffer: Buffer): Promise<number> {
     try {
         const meta = await sharp(buffer).metadata();
 
-        // ELA is fundamentally a JPEG recompression technique. For PNG/WebP/HEIC,
-        // converting to JPEG and diffing against the original will often produce
-        // large differences that look like "manipulation" even for authentic photos.
-        // To avoid systematic false positives, only run ELA on JPEG inputs.
         const format = String(meta.format || "").toLowerCase();
-        if (format !== "jpeg" && format !== "jpg") {
-            return 0;
-        }
+        const isJpeg = format === "jpeg" || format === "jpg";
+
+        // For non-JPEG formats (PNG, WebP, HEIC), convert to JPEG first
+        // so ELA can detect manipulation across all image types.
+        // Apply a small dampening factor (0.7) to non-JPEG results to account
+        // for conversion artifacts that don't indicate real manipulation.
+        const jpegBuffer = isJpeg
+            ? buffer
+            : await sharp(buffer).jpeg({ quality: 95 }).toBuffer();
 
         // Resave at 90% quality
-        const resavedBuffer = await sharp(buffer)
+        const resavedBuffer = await sharp(jpegBuffer)
             .jpeg({ quality: 90 })
             .toBuffer();
 
-        const original = sharp(buffer);
+        const original = sharp(jpegBuffer);
         const resaved = sharp(resavedBuffer);
 
         const originalMeta = await original.metadata();
@@ -211,7 +214,10 @@ export async function analyzeELA(buffer: Buffer): Promise<number> {
         // ELA score: higher difference (compared to normal noise) = higher suspicion
         // Usually, original images have low, uniform difference.
         // Manipulated images have bright spots in modified areas.
-        return Math.min(1, avgDiff / 10);
+        const rawScore = Math.min(1, avgDiff / 10);
+
+        // Dampen non-JPEG scores to avoid false positives from format conversion
+        return isJpeg ? rawScore : rawScore * 0.7;
     } catch (error) {
         console.error("ELA Analysis failed:", error);
         return 0;
@@ -407,28 +413,25 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const buffer = Buffer.from(base64Data, "base64");
     const stats = await getImageStats(buffer);
 
-    const [exif, noise, artifacts, elaScore, sightEngine] = await Promise.all([
+    const [exif, noise, artifacts, elaScore, sightEngine, hive] = await Promise.all([
         extractExifData(buffer),
         analyzeNoise(buffer),
         analyzeArtifacts(buffer, stats),
         analyzeELA(buffer),
         analyzeWithSightEngine(buffer),
+        analyzeWithHive(buffer),
     ]);
 
     const exifScore = calculateExifScore(exif);
     const noiseScore = calculateNoiseScore(noise);
     const artifactScore = calculateArtifactScore(artifacts);
 
-    const isJpeg = stats.format.toUpperCase() === "JPEG" || stats.format.toUpperCase() === "JPG";
-    const effectiveElaScore = isJpeg ? elaScore : 0;
-
-    // Technical authenticity score used to reduce false positives from LLM classification.
-    // Higher means more likely an authentic/original photo.
+    // ELA now works for all formats (non-JPEG scores are dampened in analyzeELA)
     const technicalScore =
         exifScore * 0.35 +
         noiseScore * 0.2 +
         artifactScore * 0.25 +
-        (1 - effectiveElaScore) * 0.2;
+        (1 - elaScore) * 0.2;
 
     let aiAnalysis;
     try {
@@ -471,7 +474,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         artifactScore >= 0.75 &&
         effectiveElaScore < 0.55;
 
-    const sightEngineSuggestsOriginalForPngOverride =
+    const externalProviderSuggestsOriginalForPngOverride =
         !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
 
     if (
@@ -479,7 +482,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         finalConfidence >= 85 &&
         !exif.hasExif &&
         stats.format.toUpperCase() === "PNG" &&
-        (technicalSuggestsOriginal || sightEngineSuggestsOriginalForPngOverride)
+        (technicalSuggestsOriginal || externalProviderSuggestsOriginalForPngOverride)
     ) {
         finalResult = "original";
         finalConfidence = Math.max(60, Math.min(99, Math.round(technicalScore * 100)));
@@ -489,27 +492,59 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         finalConfidence = Math.min(99, finalConfidence + 5);
     }
 
-    // SightEngine Verification
-    if (sightEngine && sightEngine.isGenerated) {
+    // Multi-provider verification: SightEngine + Hive
+    // Count how many external providers agree on AI generation
+    const providersDetectingAI: string[] = [];
+    const providersDetectingOriginal: string[] = [];
+
+    if (sightEngine && sightEngine.isGenerated && sightEngine.confidence > 60) {
+        providersDetectingAI.push('sightengine');
+    } else if (sightEngine && !sightEngine.isGenerated && sightEngine.confidence > 80) {
+        providersDetectingOriginal.push('sightengine');
+    }
+
+    if (hive && hive.isGenerated && hive.confidence > 60) {
+        providersDetectingAI.push('hive');
+    } else if (hive && !hive.isGenerated && hive.confidence > 80) {
+        providersDetectingOriginal.push('hive');
+    }
+
+    console.log(`[Analysis] Providers detecting AI: [${providersDetectingAI.join(', ')}], Original: [${providersDetectingOriginal.join(', ')}]`);
+
+    // If 2+ providers detect AI, strong evidence
+    if (providersDetectingAI.length >= 2) {
         if (finalResult === "original") {
-            // Strong contradiction: SightEngine says generated, but others say original
-            // Trust SightEngine/GPT if confidence is high, or degrade confidence
-            if (sightEngine.confidence > 80) {
-                finalResult = "ai_generated";
-                finalConfidence = Math.round(sightEngine.confidence);
-            } else {
-                finalConfidence = Math.max(0, finalConfidence - 30);
-            }
+            finalResult = "ai_generated";
+            finalConfidence = Math.max(finalConfidence, 85);
         } else {
-            // Confirmation: both suspect AI
-            finalConfidence = Math.min(99, finalConfidence + 15);
+            finalConfidence = Math.min(99, finalConfidence + 20);
         }
-    } else if (sightEngine && !sightEngine.isGenerated && sightEngine.confidence > 90) {
-        // SightEngine is very sure it's original
-        if (finalResult !== "original") {
-            finalConfidence = Math.max(0, finalConfidence - 20);
-        } else {
+    } else if (providersDetectingAI.length === 1) {
+        // Single provider detects AI
+        const provider = providersDetectingAI[0];
+        const providerConfidence = provider === 'sightengine' ? sightEngine!.confidence : hive!.confidence;
+        if (finalResult === "original" && providerConfidence > 80) {
+            finalResult = "ai_generated";
+            finalConfidence = Math.round(providerConfidence);
+        } else if (finalResult !== "original") {
             finalConfidence = Math.min(99, finalConfidence + 10);
+        }
+    }
+
+    // If 2+ providers say original, boost confidence
+    if (providersDetectingOriginal.length >= 2) {
+        if (finalResult === "original") {
+            finalConfidence = Math.min(99, finalConfidence + 15);
+        } else {
+            finalConfidence = Math.max(0, finalConfidence - 25);
+        }
+    } else if (providersDetectingOriginal.length === 1) {
+        const provider = providersDetectingOriginal[0];
+        const providerConfidence = provider === 'sightengine' ? sightEngine!.confidence : hive!.confidence;
+        if (finalResult === "original") {
+            finalConfidence = Math.min(99, finalConfidence + 10);
+        } else if (providerConfidence > 90) {
+            finalConfidence = Math.max(0, finalConfidence - 15);
         }
     }
 
@@ -527,13 +562,19 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         artifacts.repetitivePatterns,
     ].filter(Boolean).length;
 
-    const sightEngineSuggestsGenerated = !!sightEngine && sightEngine.isGenerated && sightEngine.confidence >= 90;
-    const sightEngineSuggestsOriginal = !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
+    const externalProviderSuggestsGenerated = providersDetectingAI.length >= 1 &&
+        (providersDetectingAI.length >= 2 ||
+         (sightEngine && sightEngine.isGenerated && sightEngine.confidence >= 90) ||
+         (hive && hive.isGenerated && hive.confidence >= 90));
+    const externalProviderSuggestsOriginal = providersDetectingOriginal.length >= 1 &&
+        (providersDetectingOriginal.length >= 2 ||
+         (sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90) ||
+         (hive && !hive.isGenerated && hive.confidence >= 90));
 
     let conservativeResult: AnalysisResult = "uncertain";
     let conservativeConfidence = Math.min(69, Math.max(50, finalConfidence));
 
-    if (sightEngineSuggestsGenerated) {
+    if (externalProviderSuggestsGenerated) {
         conservativeResult = "ai_generated";
         conservativeConfidence = Math.max(conservativeConfidence, Math.round(sightEngine!.confidence));
     } else if (finalResult === "ai_generated") {
@@ -543,7 +584,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
         }
     } else if (finalResult === "ai_modified") {
         const hasStrongModificationEvidence =
-            (isJpeg && effectiveElaScore >= 0.75) ||
+            (elaScore >= 0.5) ||
             suspiciousArtifactCount >= 2 ||
             (suspiciousArtifactCount >= 1 && technicalScore <= 0.55);
 
@@ -573,7 +614,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
             technicalScore >= 0.82 &&
             noiseScore >= 0.7 &&
             artifactScore >= 0.8 &&
-            (exif.hasExif || sightEngineSuggestsOriginal) &&
+            (exif.hasExif || externalProviderSuggestsOriginal) &&
             (!isNonPhotoLike || (hasNonAiEvidence && finalConfidence >= 85));
 
         if (hasStrongOriginalEvidence && finalConfidence >= 85) {

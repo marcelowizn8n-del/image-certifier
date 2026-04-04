@@ -15,6 +15,10 @@ import { analysisFeedback } from "@shared/schema";
 import { isVideoAnalysisConfigured } from "./videoAnalysisClient";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { spawn } from "child_process";
+import { promises as fsPromises } from "fs";
+import path from "path";
+import os from "os";
 import { analyzeImageAdvanced } from "./services/analysisService";
 import { processVideoAnalysis } from "./services/videoService";
 import { appleService } from "./services/appleService";
@@ -50,13 +54,136 @@ function extractYouTubeVideoId(url: string): string | null {
   return null;
 }
 
+const FACEBOOK_PATTERNS = [
+  /(?:https?:\/\/)?(?:www\.)?facebook\.com\/.+\/photos?\//,
+  /(?:https?:\/\/)?(?:www\.)?facebook\.com\/photo/,
+  /(?:https?:\/\/)?(?:www\.)?facebook\.com\/.+\/posts?\//,
+  /(?:https?:\/\/)?(?:www\.)?fb\.watch\//,
+];
+
+const LINKEDIN_PATTERNS = [
+  /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/posts?\//,
+  /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/feed\//,
+];
+
 function isInstagramUrl(url: string): boolean {
   return INSTAGRAM_PATTERNS.some(pattern => pattern.test(url));
 }
 
+function isFacebookUrl(url: string): boolean {
+  return FACEBOOK_PATTERNS.some(pattern => pattern.test(url));
+}
+
+function isLinkedInUrl(url: string): boolean {
+  return LINKEDIN_PATTERNS.some(pattern => pattern.test(url));
+}
+
+function isSocialMediaUrl(url: string): boolean {
+  return isInstagramUrl(url) || isFacebookUrl(url) || isLinkedInUrl(url);
+}
+
 function getYouTubeThumbnailUrl(videoId: string): string {
-  // Try maxresdefault first, fallback options available
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
+/**
+ * Try to extract og:image from a social media URL page HTML.
+ */
+async function extractOgImage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ImageCertifier/1.0)',
+      },
+      redirect: 'follow',
+    });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    // Match og:image meta tag
+    const ogMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"/i)
+      || html.match(/<meta\s+content="([^"]+)"\s+(?:property|name)="og:image"/i);
+
+    if (ogMatch && ogMatch[1]) {
+      return ogMatch[1].replace(/&amp;/g, '&');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try to get Instagram image via oEmbed API.
+ */
+async function extractInstagramImage(url: string): Promise<string | null> {
+  try {
+    const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+    const response = await fetch(oembedUrl);
+    if (!response.ok) return null;
+
+    const data = await response.json() as any;
+    return data.thumbnail_url || null;
+  } catch {
+    // oEmbed may fail for private posts; fall back to og:image
+    return extractOgImage(url);
+  }
+}
+
+/**
+ * Download YouTube video using yt-dlp (max 30s, 720p, 50MB).
+ * Returns the video buffer or null if download fails.
+ */
+async function downloadYouTubeVideo(videoId: string): Promise<Buffer | null> {
+  const tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'yt-'));
+  const outputPath = path.join(tempDir, 'video.mp4');
+
+  try {
+    return await new Promise<Buffer | null>((resolve) => {
+      const ytdlp = spawn('yt-dlp', [
+        `https://www.youtube.com/watch?v=${videoId}`,
+        '-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
+        '--max-filesize', '50M',
+        '--download-sections', '*0-30',
+        '-o', outputPath,
+        '--no-playlist',
+        '--quiet',
+      ]);
+
+      const timeout = setTimeout(() => {
+        ytdlp.kill();
+        resolve(null);
+      }, 60000); // 60s timeout
+
+      ytdlp.on('close', async (code) => {
+        clearTimeout(timeout);
+        try {
+          if (code === 0) {
+            const buffer = await fsPromises.readFile(outputPath);
+            resolve(buffer);
+          } else {
+            resolve(null);
+          }
+        } catch {
+          resolve(null);
+        }
+      });
+
+      ytdlp.on('error', () => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+    });
+  } finally {
+    // Cleanup
+    try {
+      const files = await fsPromises.readdir(tempDir);
+      for (const f of files) {
+        await fsPromises.unlink(path.join(tempDir, f)).catch(() => {});
+      }
+      await fsPromises.rmdir(tempDir).catch(() => {});
+    } catch {}
+  }
 }
 
 // Generate fingerprint from request for freemium tracking
@@ -582,29 +709,77 @@ export async function registerRoutes(
       let { url } = parsed.data;
       console.log("Analyzing image from URL:", url);
 
-      // Check for Instagram URLs - provide helpful message
-      if (isInstagramUrl(url)) {
-        return res.status(400).json({
-          message: "Links do Instagram não são suportados diretamente. Para analisar uma imagem do Instagram:\n\n1. Abra a imagem no Instagram\n2. Toque nos três pontos (...)\n3. Selecione 'Salvar' ou faça uma captura de tela\n4. Use a opção 'Arquivo' para fazer upload da imagem salva",
-          error: "INSTAGRAM_NOT_SUPPORTED",
-          suggestion: "save_image"
-        });
+      // Check for YouTube URLs - try to download actual video for analysis
+      const youtubeVideoId = extractYouTubeVideoId(url);
+      if (youtubeVideoId) {
+        console.log("YouTube video detected, attempting video download:", youtubeVideoId);
+
+        const videoBuffer = await downloadYouTubeVideo(youtubeVideoId);
+        if (videoBuffer && videoBuffer.length > 0) {
+          console.log(`YouTube video downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+
+          try {
+            const videoResult = await processVideoAnalysis(videoBuffer, `youtube-${youtubeVideoId}.mp4`);
+
+            await storage.incrementAnonymousUsage(fingerprint);
+            const updatedStatus = await storage.canAnalyze(fingerprint);
+
+            const videoAnalysis = await storage.createVideoAnalysis({
+              filename: `youtube-${youtubeVideoId}.mp4`,
+              result: videoResult.result,
+              confidence: videoResult.confidence,
+              manipulationScore: videoResult.manipulationScore,
+              indicators: videoResult.indicators,
+              metadata: { duration: 30, width: 1280, height: 720, format: 'mp4', size: videoBuffer.length },
+            });
+
+            return res.json({
+              ...videoAnalysis,
+              youtubeVideoId,
+              analysisType: 'video',
+              usage: { remaining: updatedStatus.remaining, limit: FREE_ANALYSIS_LIMIT },
+            });
+          } catch (videoErr) {
+            console.error("Video analysis failed, falling back to thumbnail:", videoErr);
+          }
+        } else {
+          console.log("yt-dlp not available or download failed, falling back to thumbnail");
+        }
+
+        // Fallback: analyze thumbnail
+        url = getYouTubeThumbnailUrl(youtubeVideoId);
       }
 
-      // Check for YouTube URLs - extract thumbnail automatically
-      const youtubeVideoId = extractYouTubeVideoId(url);
-      let isYouTubeThumbnail = false;
-      if (youtubeVideoId) {
-        console.log("YouTube video detected, extracting thumbnail for video:", youtubeVideoId);
-        url = getYouTubeThumbnailUrl(youtubeVideoId);
-        isYouTubeThumbnail = true;
+      // Social media URL handling (Instagram, Facebook, LinkedIn)
+      if (isSocialMediaUrl(url)) {
+        console.log("Social media URL detected, extracting image:", url);
+        let imageUrl: string | null = null;
+
+        if (isInstagramUrl(url)) {
+          imageUrl = await extractInstagramImage(url);
+        }
+
+        if (!imageUrl) {
+          imageUrl = await extractOgImage(url);
+        }
+
+        if (imageUrl) {
+          console.log("Extracted social media image URL:", imageUrl);
+          url = imageUrl;
+        } else {
+          return res.status(400).json({
+            message: "Não foi possível extrair a imagem desta URL. Tente:\n\n1. Abrir a imagem diretamente\n2. Salvar a imagem no dispositivo\n3. Fazer upload usando a opção 'Arquivo'",
+            error: "SOCIAL_MEDIA_IMAGE_NOT_FOUND",
+            suggestion: "save_image",
+          });
+        }
       }
 
       // Fetch image from URL
       const response = await fetch(url);
       if (!response.ok) {
-        // If YouTube maxresdefault fails, try hqdefault
-        if (isYouTubeThumbnail && youtubeVideoId) {
+        // If YouTube thumbnail fails, try hqdefault
+        if (youtubeVideoId) {
           const fallbackUrl = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
           const fallbackResponse = await fetch(fallbackUrl);
           if (fallbackResponse.ok) {
@@ -633,11 +808,10 @@ export async function registerRoutes(
             return res.json({
               ...analysis,
               youtubeVideoId,
+              analysisType: 'thumbnail',
               usage: { remaining: updatedStatus.remaining, limit: FREE_ANALYSIS_LIMIT }
             });
           }
-        }
-        if (isYouTubeThumbnail) {
           return res.status(400).json({
             message: "Não foi possível obter a thumbnail do vídeo do YouTube. O vídeo pode não existir, ter sido removido, ou estar privado.",
             error: "YOUTUBE_THUMBNAIL_NOT_FOUND"

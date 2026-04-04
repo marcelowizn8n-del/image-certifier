@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import OpenAI from 'openai';
+import pLimit from 'p-limit';
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -60,7 +61,7 @@ async function getVideoDuration(videoPath: string): Promise<number> {
   });
 }
 
-async function extractFrames(videoBuffer: Buffer, numFrames: number = 5): Promise<string[]> {
+async function extractFrames(videoBuffer: Buffer, numFrames: number = 12): Promise<string[]> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-frames-'));
   const videoPath = path.join(tempDir, 'input.mp4');
   
@@ -208,19 +209,21 @@ export async function analyzeVideoWithGPT4V(
   let tempDir: string | null = null;
   
   try {
-    const framePaths = await extractFrames(videoBuffer, 5);
+    const framePaths = await extractFrames(videoBuffer, 12);
     tempDir = path.dirname(framePaths[0]);
-    
+
     if (framePaths.length === 0) {
       throw new Error('No frames could be extracted from video');
     }
 
+    // Limit concurrent OpenAI calls to 4 to avoid rate limits
+    const limit = pLimit(4);
     const frameAnalyses = await Promise.all(
-      framePaths.map(async (framePath) => {
+      framePaths.map((framePath) => limit(async () => {
         const frameBuffer = await fs.readFile(framePath);
         const frameBase64 = frameBuffer.toString('base64');
         return analyzeFrameWithGPT4V(frameBase64);
-      })
+      }))
     );
 
     const validAnalyses = frameAnalyses.filter(a => a.confidence > 0.2);
