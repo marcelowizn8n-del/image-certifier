@@ -30,7 +30,10 @@ import {
   Edit,
   Save,
   Lock,
-  LogOut
+  LogOut,
+  Search,
+  RotateCcw,
+  ShieldCheck
 } from "lucide-react";
 import { apiRequest, queryClient as qc } from "@/lib/queryClient";
 import { toast } from "sonner";
@@ -169,8 +172,11 @@ export default function Admin() {
   const customers = customersData?.data || [];
   const products = productsData?.data || [];
 
+  const [userSearch, setUserSearch] = useState("");
+  const [editingLimit, setEditingLimit] = useState<{ userId: string; value: string } | null>(null);
+
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: { isPremium?: boolean; isFreeAccount?: boolean } }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: { isPremium?: boolean; isFreeAccount?: boolean; role?: string; analysisLimit?: number; analysisCount?: number } }) => {
       const response = await apiRequest("PATCH", `/api/users/${id}`, updates);
       return await response.json();
     },
@@ -628,10 +634,22 @@ export default function Admin() {
                   {t('admin.userManagement')}
                 </CardTitle>
                 <CardDescription>
-                  Gerencie contas de usuários, conceda acesso premium ou gratuito
+                  Gerencie contas de usuários, conceda acesso premium/gratuito e defina limites personalizados
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Search */}
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou email..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-user-search"
+                  />
+                </div>
+
                 {isLoadingUsers ? (
                   <div className="text-center py-8 text-muted-foreground">Carregando...</div>
                 ) : users.length === 0 ? (
@@ -639,27 +657,30 @@ export default function Admin() {
                     {t('admin.noUsers')}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {users.map((user) => (
+                  <div className="space-y-3 max-h-[600px] overflow-auto">
+                    {users
+                      .filter((u) => {
+                        if (!userSearch.trim()) return true;
+                        const q = userSearch.toLowerCase();
+                        return u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                      })
+                      .map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
+                        className="flex flex-col lg:flex-row lg:items-center justify-between p-4 rounded-lg bg-muted/50 gap-3"
                         data-testid={`row-user-${user.id}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <span className="text-primary font-medium">
                               {user.username.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <div>
-                            <p className="font-medium">{user.username}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{user.username}</p>
+                            <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 ml-2">
                             {user.isPremium && (
                               <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
                                 <Crown className="h-3 w-3 mr-1" />
@@ -674,39 +695,99 @@ export default function Admin() {
                             )}
                             {user.role === 'admin' && (
                               <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20">
+                                <ShieldCheck className="h-3 w-3 mr-1" />
                                 Admin
                               </Badge>
                             )}
                           </div>
-                          
-                          <div className="flex items-center gap-2 text-sm">
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                          {/* Usage / Limit */}
+                          <div className="flex items-center gap-2 text-sm bg-background rounded-md px-3 py-1.5 border">
                             <span className="text-muted-foreground">{t('admin.analyses')}:</span>
                             <span className="font-medium">{user.analysisCount}</span>
+                            <span className="text-muted-foreground">/</span>
+                            {editingLimit?.userId === user.id ? (
+                              <Input
+                                type="number"
+                                className="w-16 h-6 text-sm p-1"
+                                value={editingLimit.value}
+                                autoFocus
+                                onChange={(e) => setEditingLimit({ userId: user.id, value: e.target.value })}
+                                onBlur={() => {
+                                  const val = parseInt(editingLimit.value);
+                                  if (!isNaN(val) && val >= 0) {
+                                    updateUserMutation.mutate({ id: user.id, updates: { analysisLimit: val } });
+                                  }
+                                  setEditingLimit(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = parseInt(editingLimit.value);
+                                    if (!isNaN(val) && val >= 0) {
+                                      updateUserMutation.mutate({ id: user.id, updates: { analysisLimit: val } });
+                                    }
+                                    setEditingLimit(null);
+                                  }
+                                  if (e.key === 'Escape') setEditingLimit(null);
+                                }}
+                              />
+                            ) : (
+                              <span
+                                className="font-medium cursor-pointer hover:text-primary"
+                                onClick={() => setEditingLimit({ userId: user.id, value: String(user.analysisLimit ?? 10) })}
+                                title="Clique para editar o limite"
+                              >
+                                {user.analysisLimit ?? 10}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              title="Resetar contagem"
+                              onClick={() => updateUserMutation.mutate({ id: user.id, updates: { analysisCount: 0 } })}
+                              data-testid={`button-reset-${user.id}`}
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
                           </div>
 
+                          {/* Toggles */}
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="text-xs text-muted-foreground">Gratuito</span>
                               <Switch
                                 checked={user.isFreeAccount}
-                                onCheckedChange={(checked) => 
+                                onCheckedChange={(checked) =>
                                   updateUserMutation.mutate({ id: user.id, updates: { isFreeAccount: checked } })
                                 }
                                 data-testid={`switch-free-${user.id}`}
                               />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="text-xs text-muted-foreground">Premium</span>
                               <Switch
                                 checked={user.isPremium}
-                                onCheckedChange={(checked) => 
+                                onCheckedChange={(checked) =>
                                   updateUserMutation.mutate({ id: user.id, updates: { isPremium: checked } })
                                 }
                                 data-testid={`switch-premium-${user.id}`}
                               />
                             </div>
-                            <Button 
-                              variant="ghost" 
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-muted-foreground">Admin</span>
+                              <Switch
+                                checked={user.role === 'admin'}
+                                onCheckedChange={(checked) =>
+                                  updateUserMutation.mutate({ id: user.id, updates: { role: checked ? 'admin' : 'user' } })
+                                }
+                                data-testid={`switch-admin-${user.id}`}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
                               size="icon"
                               className="text-destructive hover:bg-destructive/10"
                               onClick={() => deleteUserMutation.mutate(user.id)}

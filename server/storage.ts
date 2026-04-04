@@ -6,7 +6,7 @@ import {
   users, analyses, videoAnalyses, anonymousUsage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -19,12 +19,16 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: UpdateUser): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getAnonymousUsage(fingerprint: string): Promise<AnonymousUsage | undefined>;
   incrementAnonymousUsage(fingerprint: string): Promise<AnonymousUsage>;
   canAnalyze(fingerprint: string): Promise<{ allowed: boolean; remaining: number; total: number }>;
+  canUserAnalyze(userId: string): Promise<{ allowed: boolean; remaining: number; total: number }>;
+  incrementUserUsage(userId: string): Promise<void>;
+  transferAnonymousUsage(fingerprint: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -73,6 +77,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleId, googleId));
     return user;
   }
 
@@ -128,6 +137,38 @@ export class DatabaseStorage implements IStorage {
       remaining,
       total: FREE_ANALYSIS_LIMIT,
     };
+  }
+
+  async canUserAnalyze(userId: string): Promise<{ allowed: boolean; remaining: number; total: number }> {
+    const user = await this.getUser(userId);
+    if (!user) return { allowed: false, remaining: 0, total: 0 };
+    if (user.role === "admin" || user.isPremium || user.isFreeAccount) {
+      return { allowed: true, remaining: 999999, total: 999999 };
+    }
+    const remaining = Math.max(0, user.analysisLimit - user.analysisCount);
+    return {
+      allowed: user.analysisCount < user.analysisLimit,
+      remaining,
+      total: user.analysisLimit,
+    };
+  }
+
+  async incrementUserUsage(userId: string): Promise<void> {
+    await db.update(users)
+      .set({ analysisCount: sql`${users.analysisCount} + 1` })
+      .where(eq(users.id, userId));
+  }
+
+  async transferAnonymousUsage(fingerprint: string, userId: string): Promise<void> {
+    const anonUsage = await this.getAnonymousUsage(fingerprint);
+    if (!anonUsage || anonUsage.analysisCount === 0) return;
+    const user = await this.getUser(userId);
+    if (!user) return;
+    if (user.analysisCount === 0) {
+      await db.update(users)
+        .set({ analysisCount: anonUsage.analysisCount })
+        .where(eq(users.id, userId));
+    }
   }
 }
 

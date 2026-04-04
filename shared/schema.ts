@@ -9,11 +9,13 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password"),
+  googleId: text("google_id").unique(),
   role: text("role").$type<UserRole>().default("user").notNull(),
   isPremium: boolean("is_premium").default(false).notNull(),
   isFreeAccount: boolean("is_free_account").default(false).notNull(),
   analysisCount: integer("analysis_count").default(0).notNull(),
+  analysisLimit: integer("analysis_limit").default(10).notNull(),
   mpSubscriptionId: text("mp_subscription_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -22,6 +24,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
   password: true,
+  googleId: true,
 });
 
 export const updateUserSchema = z.object({
@@ -30,6 +33,8 @@ export const updateUserSchema = z.object({
   role: z.enum(["user", "admin"]).optional(),
   password: z.string().optional(),
   mpSubscriptionId: z.string().optional(),
+  analysisLimit: z.number().int().min(0).optional(),
+  analysisCount: z.number().int().min(0).optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

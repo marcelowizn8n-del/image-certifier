@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/Landing";
 import Upload from "@/pages/Upload";
 import VideoUpload from "@/pages/VideoUpload";
 import Dashboard from "@/pages/Dashboard";
@@ -22,7 +23,8 @@ import Api from "@/pages/Api";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Upload} />
+      <Route path="/" component={Landing} />
+      <Route path="/analyze" component={Upload} />
       <Route path="/video" component={VideoUpload} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/batch" component={BatchUpload} />

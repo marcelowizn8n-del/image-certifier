@@ -128,7 +128,7 @@ export default function Dashboard() {
               <p className="text-muted-foreground mb-4">
                 Start by analyzing your first image to see it here.
               </p>
-              <Link href="/">
+              <Link href="/analyze">
                 <Button data-testid="button-analyze-first">
                   Analyze First Image
                 </Button>

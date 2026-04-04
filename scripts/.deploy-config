@@ -1,0 +1,4 @@
+VPS_HOST=""
+VPS_USER="root"
+VPS_PATH="/root/image-certifier"
+SSH_KEY="/Users/marcelo/.ssh/id_ed25519"

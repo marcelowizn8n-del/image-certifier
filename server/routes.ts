@@ -557,15 +557,48 @@ export async function registerRoutes(
     }
   });
 
+  // Helper: check usage limit (user-based if logged in, fingerprint otherwise)
+  async function checkUsageLimit(req: Request): Promise<{ allowed: boolean; remaining: number; limit: number; isUser: boolean }> {
+    const user = req.user as any;
+    if (user?.id) {
+      const fullUser = await storage.getUser(user.id);
+      if (fullUser?.role === "admin" || fullUser?.isPremium || fullUser?.isFreeAccount) {
+        return { allowed: true, remaining: 999999, limit: 999999, isUser: true };
+      }
+      const status = await storage.canUserAnalyze(user.id);
+      return { allowed: status.allowed, remaining: status.remaining, limit: status.total, isUser: true };
+    }
+    const fingerprint = getFingerprint(req);
+    const status = await storage.canAnalyze(fingerprint);
+    return { allowed: status.allowed, remaining: status.remaining, limit: FREE_ANALYSIS_LIMIT, isUser: false };
+  }
+
+  async function incrementUsage(req: Request): Promise<{ remaining: number; limit: number }> {
+    const user = req.user as any;
+    if (user?.id) {
+      const fullUser = await storage.getUser(user.id);
+      if (fullUser?.role === "admin" || fullUser?.isPremium || fullUser?.isFreeAccount) {
+        return { remaining: 999999, limit: 999999 };
+      }
+      await storage.incrementUserUsage(user.id);
+      const status = await storage.canUserAnalyze(user.id);
+      return { remaining: status.remaining, limit: status.total };
+    }
+    const fingerprint = getFingerprint(req);
+    await storage.incrementAnonymousUsage(fingerprint);
+    const status = await storage.canAnalyze(fingerprint);
+    return { remaining: status.remaining, limit: FREE_ANALYSIS_LIMIT };
+  }
+
   // Check freemium usage status
   app.get("/api/usage", async (req, res) => {
     try {
-      const fingerprint = getFingerprint(req);
-      const status = await storage.canAnalyze(fingerprint);
+      const status = await checkUsageLimit(req);
       res.json({
-        ...status,
-        limit: FREE_ANALYSIS_LIMIT,
-        used: FREE_ANALYSIS_LIMIT - status.remaining,
+        allowed: status.allowed,
+        remaining: status.remaining,
+        limit: status.limit,
+        used: status.limit - status.remaining,
       });
     } catch (error) {
       console.error("Error checking usage:", error);
@@ -576,16 +609,15 @@ export async function registerRoutes(
   // Analyze image from base64 data
   app.post("/api/analyze", async (req, res) => {
     try {
-      // Check freemium limit
-      const fingerprint = getFingerprint(req);
-      const canAnalyze = await storage.canAnalyze(fingerprint);
+      // Check limit (user-based or anonymous)
+      const usageCheck = await checkUsageLimit(req);
 
-      if (!canAnalyze.allowed) {
+      if (!usageCheck.allowed) {
         return res.status(403).json({
           message: "Limite gratuito atingido",
           error: "FREE_LIMIT_EXCEEDED",
           remaining: 0,
-          limit: FREE_ANALYSIS_LIMIT,
+          limit: usageCheck.limit,
           upgradeUrl: "/auth?next=/pricing"
         });
       }
@@ -603,8 +635,7 @@ export async function registerRoutes(
       console.log("Analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
 
       // Increment usage count
-      await storage.incrementAnonymousUsage(fingerprint);
-      const updatedStatus = await storage.canAnalyze(fingerprint);
+      const usage = await incrementUsage(req);
 
       // Save to storage
       const analysis = await storage.createAnalysis({
@@ -620,10 +651,7 @@ export async function registerRoutes(
       console.log("Returning analysis:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
       res.json({
         ...analysis,
-        usage: {
-          remaining: updatedStatus.remaining,
-          limit: FREE_ANALYSIS_LIMIT,
-        }
+        usage,
       });
     } catch (error) {
       console.error("Error analyzing image:", error);
@@ -687,16 +715,15 @@ export async function registerRoutes(
   // Analyze image from URL
   app.post("/api/analyze-url", async (req, res) => {
     try {
-      // Check freemium limit
-      const fingerprint = getFingerprint(req);
-      const canAnalyzeResult = await storage.canAnalyze(fingerprint);
+      // Check limit (user-based or anonymous)
+      const usageCheck = await checkUsageLimit(req);
 
-      if (!canAnalyzeResult.allowed) {
+      if (!usageCheck.allowed) {
         return res.status(403).json({
           message: "Limite gratuito atingido",
           error: "FREE_LIMIT_EXCEEDED",
           remaining: 0,
-          limit: FREE_ANALYSIS_LIMIT,
+          limit: usageCheck.limit,
           upgradeUrl: "/auth?next=/pricing"
         });
       }
@@ -721,8 +748,7 @@ export async function registerRoutes(
           try {
             const videoResult = await processVideoAnalysis(videoBuffer, `youtube-${youtubeVideoId}.mp4`);
 
-            await storage.incrementAnonymousUsage(fingerprint);
-            const updatedStatus = await storage.canAnalyze(fingerprint);
+            const usage = await incrementUsage(req);
 
             const videoAnalysis = await storage.createVideoAnalysis({
               filename: `youtube-${youtubeVideoId}.mp4`,
@@ -737,7 +763,7 @@ export async function registerRoutes(
               ...videoAnalysis,
               youtubeVideoId,
               analysisType: 'video',
-              usage: { remaining: updatedStatus.remaining, limit: FREE_ANALYSIS_LIMIT },
+              usage,
             });
           } catch (videoErr) {
             console.error("Video analysis failed, falling back to thumbnail:", videoErr);
@@ -792,8 +818,7 @@ export async function registerRoutes(
             console.log("Using YouTube hqdefault thumbnail");
             const analysisResult = await analyzeImageAdvanced(imageData, filename);
 
-            await storage.incrementAnonymousUsage(fingerprint);
-            const updatedStatus = await storage.canAnalyze(fingerprint);
+            const ytUsage = await incrementUsage(req);
 
             const analysis = await storage.createAnalysis({
               filename,
@@ -809,7 +834,7 @@ export async function registerRoutes(
               ...analysis,
               youtubeVideoId,
               analysisType: 'thumbnail',
-              usage: { remaining: updatedStatus.remaining, limit: FREE_ANALYSIS_LIMIT }
+              usage: ytUsage
             });
           }
           return res.status(400).json({
@@ -843,8 +868,7 @@ export async function registerRoutes(
       console.log("URL analysis complete:", { result: analysisResult.result, confidence: analysisResult.confidence });
 
       // Increment usage count
-      await storage.incrementAnonymousUsage(fingerprint);
-      const updatedStatus = await storage.canAnalyze(fingerprint);
+      const urlUsage = await incrementUsage(req);
 
       // Save to storage
       const analysis = await storage.createAnalysis({
@@ -860,10 +884,7 @@ export async function registerRoutes(
       console.log("URL analysis returning:", { id: analysis.id, result: analysis.result, confidence: analysis.confidence });
       res.json({
         ...analysis,
-        usage: {
-          remaining: updatedStatus.remaining,
-          limit: FREE_ANALYSIS_LIMIT,
-        }
+        usage: urlUsage,
       });
     } catch (error) {
       console.error("Error analyzing URL:", error);
