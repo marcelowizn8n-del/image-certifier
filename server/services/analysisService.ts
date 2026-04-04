@@ -451,11 +451,11 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     let finalResult = aiAnalysis.result;
     let finalConfidence = aiAnalysis.confidence;
 
-    // Cross-verify AI result with ELA (JPEG only)
-    if (isJpeg && effectiveElaScore > 0.6 && finalResult === "original") {
+    // Cross-verify AI result with ELA (all formats now supported)
+    if (elaScore > 0.6 && finalResult === "original") {
         // High ELA difference but AI said original - highly likely modified
         finalResult = "ai_modified";
-        finalConfidence = Math.round(effectiveElaScore * 100);
+        finalConfidence = Math.round(elaScore * 100);
     }
 
     if (exifScore >= 0.5 && exif.cameraMake) {
@@ -472,7 +472,7 @@ export async function analyzeImageAdvanced(imageData: string, filename: string) 
     const technicalSuggestsOriginal =
         technicalScore >= 0.67 &&
         artifactScore >= 0.75 &&
-        effectiveElaScore < 0.55;
+        elaScore < 0.55;
 
     const externalProviderSuggestsOriginalForPngOverride =
         !!sightEngine && !sightEngine.isGenerated && sightEngine.confidence >= 90;
